@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+<title>RNG Cracker</title>
+<style>
+:root{--bg:#0a0c10;--panel:#111318;--border:#1e2330;--accent:#00e5ff;--green:#00e676;--red:#ef5350;--muted:#555e70;--text:#e0e0e0;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:Arial,sans-serif;padding:14px;max-width:480px;margin:0 auto;}
+h1{color:var(--accent);font-size:18px;letter-spacing:2px;margin-bottom:4px;}
+p{color:var(--muted);font-size:11px;margin-bottom:14px;}
+.btn{width:100%;background:var(--accent);color:#000;border:none;border-radius:8px;font-size:16px;font-weight:700;padding:14px;cursor:pointer;margin-bottom:12px;}
+.btn:disabled{background:#333;color:#666;cursor:not-allowed;}
+.prog-wrap{background:#1e2330;border-radius:4px;height:6px;margin-bottom:12px;overflow:hidden;}
+.prog-bar{background:var(--accent);height:100%;transition:width .3s;}
+.box{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:10px;}
+.box-title{font-size:9px;color:var(--muted);letter-spacing:1px;margin-bottom:8px;}
+.best-pred{border:2px solid var(--accent);}
+.pred-letter{font-size:42px;font-weight:900;}
+.pred-right{text-align:right;}
+.pred-lbl{font-size:10px;color:var(--muted);}
+.pred-val{font-size:13px;color:var(--accent);}
+.acc-good{color:var(--green);}.acc-bad{color:var(--red);}
+.row{display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);}
+.row:last-child{border-bottom:none;}
+.tag{font-size:10px;padding:2px 6px;border-radius:4px;}
+.fruit-tag{font-size:13px;font-weight:700;background:#0d0f14;padding:2px 7px;border-radius:4px;}
+.log-item{font-size:10px;color:var(--muted);font-family:monospace;padding:2px 0;}
+.next-fruits{display:flex;gap:4px;margin-top:4px;flex-wrap:wrap;}
+.info{font-size:10px;color:var(--muted);margin-top:4px;}
+.back-btn{display:inline-block;color:var(--accent);font-size:12px;text-decoration:none;margin-bottom:14px;border:1px solid var(--border);padding:5px 10px;border-radius:6px;}
+</style>
+</head>
+<body>
+
+<a class="back-btn" href="index.html">← Back to Tracker</a>
+<h1>RNG CRACKER</h1>
+<p>Tests LCG, XorShift & Markov Chain algorithms against your data</p>
+
+<button class="btn" id="run-btn" onclick="runAnalysis()">▶ RUN ANALYSIS</button>
+<div class="prog-wrap" id="prog-wrap" style="display:none;">
+  <div class="prog-bar" id="prog-bar" style="width:0%"></div>
+</div>
+
+<div id="best-box" style="display:none;" class="box best-pred">
+  <div class="box-title">BEST PREDICTION — NEXT ROUND</div>
+  <div style="display:flex;align-items:center;justify-content:space-between;">
+    <div class="pred-letter" id="best-letter"></div>
+    <div class="pred-right">
+      <div class="pred-lbl">Method</div>
+      <div class="pred-val" id="best-method"></div>
+      <div class="pred-lbl" style="margin-top:4px;">Accuracy</div>
+      <div style="font-size:18px;font-weight:700;" id="best-acc"></div>
+    </div>
+  </div>
+</div>
+
+<div id="markov-box" style="display:none;" class="box">
+  <div class="box-title">MARKOV CHAIN RESULTS</div>
+  <div id="markov-content"></div>
+</div>
+
+<div id="rng-box" style="display:none;" class="box">
+  <div class="box-title">RNG ALGORITHM RESULTS</div>
+  <div id="rng-content"></div>
+</div>
+
+<div id="log-box" style="display:none;" class="box">
+  <div class="box-title">LOG</div>
+  <div id="log-content"></div>
+</div>
+
+<div id="data-info" style="text-align:center;font-size:10px;color:var(--muted);margin-top:8px;"></div>
+
+<script>
+var U='https://rfdczqbszgnujeyxxiul.supabase.co';
+var K='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJmZGN6cWJzemdudWpleXh4aXVsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAzMTc4MTMsImV4cCI6MjA5NTg5MzgxM30.HLSue6rAKMWM4VFSTCxOEExvPylvetYrPTvWCwvIJaI';
+
+var FRUIT_MAP={T:0,K:1,O:2,L:3,C:4,S:5,G:6,W:7};
+var NUM_MAP={0:'T',1:'K',2:'O',3:'L',4:'C',5:'S',6:'G',7:'W'};
+var COLORS={T:'#e53935',K:'#43a047',O:'#fb8c00',L:'#fdd835',C:'#e91e63',S:'#ffb74d',G:'#ce93d8',W:'#00e676'};
+var WEIGHTS=[20,20,20,20,10,6.7,4,2.5];
+var TOTAL_W=WEIGHTS.reduce(function(a,b){return a+b;},0);
+
+var logs=[];
+function addLog(msg){
+  logs.unshift(msg);
+  if(logs.length>20)logs.pop();
+  document.getElementById('log-box').style.display='block';
+  document.getElementById('log-content').innerHTML=logs.map(function(l){return'<div class="log-item">'+l+'</div>';}).join('');
+}
+
+function setProgress(pct){
+  document.getElementById('prog-wrap').style.display='block';
+  document.getElementById('prog-bar').style.width=pct+'%';
+}
+
+function weightedIndex(val,max){
+  var cum=0,norm=(val/max)*TOTAL_W;
+  for(var i=0;i<WEIGHTS.length;i++){cum+=WEIGHTS[i];if(norm<=cum)return i;}
+  return 7;
+}
+
+function lcgRun(seed,a,c,m,count){
+  var res=[],x=seed;
+  for(var i=0;i<count;i++){x=(a*x+c)%m;res.push(weightedIndex(x,m));}
+  return res;
+}
+
+function xorShift(seed,count){
+  var res=[],x=seed>>>0;
+  for(var i=0;i<count;i++){x^=x<<13;x^=x>>17;x^=x<<5;x=x>>>0;res.push(weightedIndex(x,4294967295));}
+  return res;
+}
+
+function accuracy(pred,actual){
+  var ok=0,n=Math.min(pred.length,actual.length);
+  for(var i=0;i<n;i++)if(pred[i]===actual[i])ok++;
+  return n>0?ok/n*100:0;
+}
+
+function findSeed(seq,algo,params,range){
+  var best={seed:1,acc:0};
+  for(var s=1;s<=range;s++){
+    var pred=algo==='lcg'?lcgRun(s,params.a,params.c,params.m,seq.length):xorShift(s,seq.length);
+    var acc=accuracy(pred,seq);
+    if(acc>best.acc){best.acc=acc;best.seed=s;}
+  }
+  return best;
+}
+
+function buildMarkov(seq,order){
+  var chain={};
+  for(var i=order;i<seq.length;i++){
+    var key=seq.slice(i-order,i).join(','),next=seq[i];
+    if(!chain[key])chain[key]={};
+    chain[key][next]=(chain[key][next]||0)+1;
+  }
+  return chain;
+}
+
+function markovPredict(chain,last,order){
+  var key=last.slice(-order).join(',');
+  if(!chain[key])return null;
+  var counts=chain[key],total=Object.values(counts).reduce(function(a,b){return a+b;},0);
+  var best=null,bestC=0;
+  Object.keys(counts).forEach(function(f){if(counts[f]>bestC){bestC=counts[f];best=f;}});
+  return{fruit:best,conf:(bestC/total*100).toFixed(1),total:total};
+}
+
+var LCG_PARAMS=[
+  {name:'Numerical Recipes',a:1664525,c:1013904223,m:4294967296},
+  {name:'glibc',a:1103515245,c:12345,m:2147483648},
+  {name:'Borland C++',a:22695477,c:1,m:4294967296},
+  {name:'MINSTD',a:16807,c:0,m:2147483647},
+  {name:'ZX81',a:75,c:74,m:65537}
+];
+
+function sleep(ms){return new Promise(function(r){setTimeout(r,ms);});}
+
+async function runAnalysis(){
+  var btn=document.getElementById('run-btn');
+  btn.disabled=true;btn.textContent='Running...';
+  logs=[];setProgress(5);
+
+  addLog('📡 Fetching data from Supabase...');
+  // Try to get saved session token from tracker
+  var savedSession=localStorage.getItem('rt');
+  var authToken=K;
+  if(savedSession){try{var s=JSON.parse(savedSession);if(s.tok)authToken=s.tok;}catch(e){}}
+  addLog('🔑 Using '+(authToken===K?'anon key':'user token'));
+  var res=await fetch(U+'/rest/v1/rounds?order=play_date.asc,round_number.asc&limit=9999',{
+    headers:{apikey:K,'Authorization':'Bearer '+authToken}
+  });
+  addLog('📥 Response status: '+res.status);
+  var data=await res.json();
+  if(!Array.isArray(data)){addLog('❌ Error: '+JSON.stringify(data));btn.disabled=false;btn.textContent='▶ RUN ANALYSIS';return;}
+  var filled=data.filter(function(r){return r.code&&r.code!=='';});
+  addLog('✅ Loaded '+filled.length+' rounds');
+  document.getElementById('data-info').textContent='Analyzed '+filled.length+' rounds';
+
+  if(filled.length<10){addLog('❌ Need at least 10 rounds');btn.disabled=false;btn.textContent='▶ RUN ANALYSIS';return;}
+
+  var seq=filled.map(function(r){return FRUIT_MAP[r.code];});
+  var n=seq.length;
+  var allResults=[];
+
+  // LCG tests
+  for(var i=0;i<LCG_PARAMS.length;i++){
+    var p=LCG_PARAMS[i];
+    setProgress(10+i*12);
+    addLog('🧪 Testing LCG: '+p.name+'...');
+    await sleep(30);
+    var found=findSeed(seq,'lcg',p,30000);
+    var pred=lcgRun(found.seed,p.a,p.c,p.m,n+5);
+    allResults.push({name:'LCG ('+p.name+')',acc:found.acc.toFixed(1),seed:found.seed,next:pred.slice(n,n+5).map(function(x){return NUM_MAP[x];})});
+    addLog('  → '+found.acc.toFixed(1)+'% accuracy');
+  }
+
+  // XorShift
+  setProgress(75);
+  addLog('🧪 Testing XorShift32...');
+  await sleep(30);
+  var xf=findSeed(seq,'xor',null,30000);
+  var xp=xorShift(xf.seed,n+5);
+  allResults.push({name:'XorShift32',acc:xf.acc.toFixed(1),seed:xf.seed,next:xp.slice(n,n+5).map(function(x){return NUM_MAP[x];})});
+  addLog('  → '+xf.acc.toFixed(1)+'% accuracy');
+
+  // Markov
+  setProgress(88);
+  addLog('🧪 Markov Chain analysis...');
+  await sleep(30);
+  var markovRes=[];
+  for(var ord=2;ord<=4;ord++){
+    var chain=buildMarkov(seq,ord);
+    var mp=markovPredict(chain,seq.slice(-ord),ord);
+    var testStart=Math.floor(n*0.8),ok=0,tot=0;
+    for(var j=testStart+ord;j<n;j++){
+      var pp=markovPredict(chain,seq.slice(j-ord,j),ord);
+      if(pp&&parseInt(pp.fruit)===seq[j])ok++;
+      tot++;
+    }
+    var macc=tot>0?(ok/tot*100).toFixed(1):0;
+    var nextFruit=mp?NUM_MAP[parseInt(mp.fruit)]:'—';
+    markovRes.push({order:ord,acc:macc,next:nextFruit,conf:mp?mp.conf:0,matches:mp?mp.total:0});
+    addLog('  → Order '+ord+': '+macc+'% acc, next: '+nextFruit);
+  }
+
+  // Sort results
+  allResults.sort(function(a,b){return parseFloat(b.acc)-parseFloat(a.acc);});
+  var bestMarkov=markovRes.slice().sort(function(a,b){return parseFloat(b.acc)-parseFloat(a.acc);})[0];
+  var bestRNG=allResults[0];
+  var best=parseFloat(bestRNG.acc)>parseFloat(bestMarkov.acc)?
+    {letter:bestRNG.next[0],method:bestRNG.name,acc:bestRNG.acc}:
+    {letter:bestMarkov.next,method:'Markov Order '+bestMarkov.order,acc:bestMarkov.acc};
+
+  // Render best prediction
+  document.getElementById('best-box').style.display='block';
+  document.getElementById('best-letter').textContent=best.letter;
+  document.getElementById('best-letter').style.color=COLORS[best.letter]||'#00e5ff';
+  document.getElementById('best-method').textContent=best.method;
+  document.getElementById('best-acc').textContent=best.acc+'%';
+  document.getElementById('best-acc').className=parseFloat(best.acc)>25?'acc-good':'acc-bad';
+
+  // Render Markov
+  document.getElementById('markov-box').style.display='block';
+  document.getElementById('markov-content').innerHTML=markovRes.map(function(r){
+    return'<div class="row">'
+      +'<div><span style="font-size:11px;color:#00e5ff;">Order '+r.order+'</span>'
+      +'<span style="font-size:10px;color:var(--muted);margin-left:8px;">'+r.matches+' matches</span></div>'
+      +'<div style="display:flex;align-items:center;gap:8px;">'
+      +'<span class="fruit-tag" style="color:'+COLORS[r.next]+'">'+r.next+'</span>'
+      +'<span style="font-size:11px;color:'+(r.conf>=50?'#00e676':'#ffb74d')+'">'+r.conf+'%</span>'
+      +'<span class="tag" style="background:'+(parseFloat(r.acc)>25?'rgba(0,230,118,.15)':'rgba(239,83,80,.15)');color:'+(parseFloat(r.acc)>25?'#00e676':'#ef5350')+'">'+r.acc+'%</span>'
+      +'</div></div>';
+  }).join('');
+
+  // Render RNG
+  document.getElementById('rng-box').style.display='block';
+  document.getElementById('rng-content').innerHTML=allResults.map(function(r,i){
+    return'<div class="row">'
+      +'<div><div style="font-size:11px;color:'+(i===0?'#00e5ff':'#e0e0e0')+'">'+r.name+'</div>'
+      +'<div class="next-fruits">'+r.next.map(function(f){return'<span class="fruit-tag" style="color:'+COLORS[f]+'">'+f+'</span>';}).join('')+'</div></div>'
+      +'<span style="font-size:13px;font-weight:700;color:'+(parseFloat(r.acc)>20?'#00e676':'#ef5350')+'">'+r.acc+'%</span>'
+      +'</div>';
+  }).join('');
+
+  setProgress(100);
+  btn.disabled=false;btn.textContent='▶ RUN AGAIN';
+  addLog('✅ Done!');
+}
+</script>
+</body>
+</html>
