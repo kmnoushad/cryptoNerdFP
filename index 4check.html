@@ -193,7 +193,7 @@ body{background:var(--bg);color:var(--text);font-family:Arial,sans-serif;font-si
   </div>
   <!-- Current sequence match alert — only shows if match found -->
   <div id="seq-alert" style="display:none;background:rgba(255,214,0,.1);border:1px solid var(--yellow);border-radius:8px;padding:8px 12px;margin-bottom:8px;font-size:11px;color:var(--yellow);">
-    <span style="font-size:9px;letter-spacing:1px;display:block;margin-bottom:3px;">▶ CURRENT SEQUENCE MATCH (LAST 30)</span>
+    <span style="font-size:9px;letter-spacing:1px;display:block;margin-bottom:3px;">▶ CURRENT SEQUENCE MATCH (ALL HISTORY)</span>
     <div style="margin-bottom:5px;font-size:10px;color:var(--muted);">2-item:</div>
     <div id="seq-alert-content"></div>
     <div style="margin-top:6px;margin-bottom:3px;font-size:10px;color:var(--muted);">3-item:</div>
@@ -270,7 +270,7 @@ body{background:var(--bg);color:var(--text);font-family:Arial,sans-serif;font-si
   </div>
   <!-- 2-sequence full table -->
   <div class="seq-box" style="margin-top:8px;">
-    <div class="seq-title">LAST 30 ROUNDS — 2-SEQUENCE FOLLOWERS</div>
+    <div class="seq-title">ALL HISTORY — 2-SEQUENCE FOLLOWERS</div>
     <div class="seq-table" id="seq-table"></div>
   </div>
   <!-- Edit Modal -->
@@ -520,7 +520,7 @@ function updateFruitCounts(){
 }
 
 function updateSeqTable(){
-  var hist=getFilledRounds().slice(-30);
+  var hist=getFilledRounds(); // scan ALL history
   var c=hist.map(function(r){return r.code;}),n=c.length;
   var el=document.getElementById('seq-table');
   var alertEl=document.getElementById('seq-alert');
