@@ -122,9 +122,11 @@ function accuracy(pred,actual){
 
 function findSeed(seq,algo,params,range){
   var best={seed:1,acc:0};
+  // Only use last 50 entries for speed on mobile
+  var testSeq=seq.slice(-50);
   for(var s=1;s<=range;s++){
-    var pred=algo==='lcg'?lcgRun(s,params.a,params.c,params.m,seq.length):xorShift(s,seq.length);
-    var acc=accuracy(pred,seq);
+    var pred=algo==='lcg'?lcgRun(s,params.a,params.c,params.m,testSeq.length):xorShift(s,testSeq.length);
+    var acc=accuracy(pred,testSeq);
     if(acc>best.acc){best.acc=acc;best.seed=s;}
   }
   return best;
@@ -192,7 +194,7 @@ async function runAnalysis(){
     setProgress(10+i*12);
     addLog('🧪 Testing LCG: '+p.name+'...');
     await sleep(30);
-    var found=findSeed(seq,'lcg',p,30000);
+    var found=findSeed(seq,'lcg',p,5000);
     var pred=lcgRun(found.seed,p.a,p.c,p.m,n+5);
     allResults.push({name:'LCG ('+p.name+')',acc:found.acc.toFixed(1),seed:found.seed,next:pred.slice(n,n+5).map(function(x){return NUM_MAP[x];})});
     addLog('  → '+found.acc.toFixed(1)+'% accuracy');
@@ -202,7 +204,7 @@ async function runAnalysis(){
   setProgress(75);
   addLog('🧪 Testing XorShift32...');
   await sleep(30);
-  var xf=findSeed(seq,'xor',null,30000);
+  var xf=findSeed(seq,'xor',null,5000);
   var xp=xorShift(xf.seed,n+5);
   allResults.push({name:'XorShift32',acc:xf.acc.toFixed(1),seed:xf.seed,next:xp.slice(n,n+5).map(function(x){return NUM_MAP[x];})});
   addLog('  → '+xf.acc.toFixed(1)+'% accuracy');
