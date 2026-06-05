@@ -173,6 +173,7 @@ body{background:var(--bg);color:var(--text);font-family:Arial,sans-serif;font-si
       <button class="hbtn" onclick="doLogout()">LOGOUT</button>
     </div>
   </div>
+  <div id="debug-date" style="font-size:10px;color:#555;text-align:center;padding:2px;"></div>
   <div class="date-row">
     <span class="date-lbl">DATE</span>
     <input class="date-sel" type="date" id="seldate" onchange="onDateChange()"/>
@@ -370,7 +371,7 @@ async function refreshToken(){
 }
 function doLogout(){tok=null;uid=null;rounds=[];localStorage.removeItem('rt');document.getElementById('app').style.display='none';document.getElementById('auth').style.display='flex';}
 
-function initApp(){document.getElementById('auth').style.display='none';document.getElementById('app').style.display='flex';setToday();}
+function initApp(){document.getElementById('auth').style.display='none';document.getElementById('app').style.display='flex';var dbg=document.getElementById('debug-date');if(dbg)dbg.textContent='App date: '+today()+' | Device: '+new Date().toString().substring(0,24);setToday();}
 function setToday(){curDate=today();document.getElementById('seldate').value=curDate;userSetRound=false;loadRounds();}
 function onDateChange(){curDate=document.getElementById('seldate').value;userSetRound=false;loadRounds();}
 
