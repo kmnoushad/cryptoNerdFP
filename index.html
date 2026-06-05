@@ -754,18 +754,17 @@ async function runRNG(){
   rngLog('✅ Done!');
 }
 
-(function(){
+window.addEventListener('load', function(){
   var s=localStorage.getItem('rt');
   if(s){try{
     var o=JSON.parse(s);tok=o.tok;uid=o.uid;if(o.refresh)refreshTok=o.refresh;
-    // Restore round number and direction
     var savedRnum=localStorage.getItem('rt_rnum');
     var savedDir=localStorage.getItem('rt_dir');
     if(savedDir){enterDir=parseInt(savedDir);setDir(enterDir);}
     if(savedRnum){document.getElementById('rnum').value=savedRnum;userSetRound=true;}
     initApp();
   }catch(e){localStorage.removeItem('rt');}}
-})();
+});
 </script>
 </body>
 </html>
