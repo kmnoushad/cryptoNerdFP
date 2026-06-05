@@ -378,7 +378,7 @@ function onDateChange(){curDate=document.getElementById('seldate').value;userSet
 function loadRounds(){curDate=document.getElementById('seldate').value||today();
   document.getElementById('hl').innerHTML='<div class="nodata">Loading...</div>';
   fetch(U+'/rest/v1/rounds?order=play_date.asc,round_number.asc&limit=9999',{
-    headers:{'apikey':K,'Authorization':'Bearer '+tok}
+    headers:{'apikey':K,'Authorization':'Bearer '+tok,'Range':'0-9999'}
   }).then(function(r){
     if(r.status===401){toast('Session expired — please log in again');setTimeout(doLogout,1500);return null;}
     return r.json();
