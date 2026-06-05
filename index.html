@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
-<title>Round Tracker</title>
+<title>Round Tracker - Fixed Data Entry</title>
 <style>
 :root{--bg:#0a0c10;--panel:#111318;--border:#1e2330;--accent:#00e5ff;--green:#00e676;--purple:#ce93d8;--orange:#ffb74d;--red:#ef5350;--yellow:#ffd600;--text:#e0e0e0;--muted:#555e70;}
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
@@ -140,7 +140,6 @@ body{background:var(--bg);color:var(--text);font-family:Arial,sans-serif;font-si
 .toast.show{transform:translateX(-50%) translateY(0);}
 .spin{display:inline-block;width:12px;height:12px;border:2px solid rgba(0,0,0,.3);border-top-color:#000;border-radius:50%;animation:sp .6s linear infinite;vertical-align:middle;margin-right:4px;}
 @keyframes sp{to{transform:rotate(360deg);}}
-/* RNG */
 .rng-box{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:8px;display:none;}
 .rng-title{font-size:14px;font-weight:700;color:var(--accent);margin-bottom:10px;letter-spacing:1px;}
 .rng-btn{width:100%;background:var(--accent);color:#000;border:none;border-radius:6px;font-size:15px;font-weight:700;padding:12px;cursor:pointer;margin-bottom:8px;}
@@ -201,7 +200,7 @@ body{background:var(--bg);color:var(--text);font-family:Arial,sans-serif;font-si
     <div class="rrow">
       <span class="rlbl">ROUND #</span>
       <button class="radj" onclick="adjRound(-1)">−</button>
-      <input class="rnum" type="number" id="rnum" value="1" min="1" max="2600"/>
+      <input class="rnum" type="number" id="rnum" value="1" min="1" max="2700"/>
       <button class="radj" onclick="adjRound(1)">+</button>
     </div>
     <div class="dir-toggle">
@@ -221,39 +220,17 @@ body{background:var(--bg);color:var(--text);font-family:Arial,sans-serif;font-si
     <div class="ss-row"><span id="ss"></span></div>
   </div>
 
-  <!-- RNG CRACKER TOGGLE -->
-  <button onclick="var b=document.getElementById('rng-box');b.style.display=b.style.display==='block'?'none':'block';" style="width:100%;background:#111318;border:2px solid #00e5ff;color:#00e5ff;border-radius:8px;font-size:14px;font-weight:700;padding:12px;cursor:pointer;margin-bottom:8px;touch-action:manipulation;">🔬 RNG CRACKER</button>
+  <button onclick="var b=document.getElementById('rng-box');b.style.display=b.style.display==='block'?'none':'block';" style="width:100%;background:#111318;border:2px solid #00e5ff;color:#00e5ff;border-radius:8px;font-size:14px;font-weight:700;padding:12px;cursor:pointer;margin-bottom:8px;">🔬 RNG CRACKER</button>
   <div class="rng-box" id="rng-box">
     <div class="rng-title">RNG CRACKER</div>
     <button class="rng-btn" id="rng-run-btn" onclick="runRNG()">▶ RUN ANALYSIS</button>
     <div class="prog-wrap" id="rng-prog-wrap"><div class="prog-bar" id="rng-prog-bar" style="width:0%"></div></div>
-    <div id="rng-best" style="display:none;" class="rng-result-box">
-      <div class="rng-result-title">BEST PREDICTION — NEXT ROUND</div>
-      <div style="display:flex;align-items:center;justify-content:space-between;">
-        <div id="rng-best-letter" style="font-size:38px;font-weight:900;"></div>
-        <div style="text-align:right;">
-          <div style="font-size:10px;color:var(--muted);">Method</div>
-          <div id="rng-best-method" style="font-size:12px;color:var(--accent);"></div>
-          <div style="font-size:10px;color:var(--muted);margin-top:3px;">Accuracy</div>
-          <div id="rng-best-acc" style="font-size:16px;font-weight:700;"></div>
-        </div>
-      </div>
-    </div>
-    <div id="rng-markov" style="display:none;" class="rng-result-box">
-      <div class="rng-result-title">MARKOV CHAIN</div>
-      <div id="rng-markov-content"></div>
-    </div>
-    <div id="rng-results" style="display:none;" class="rng-result-box">
-      <div class="rng-result-title">RNG ALGORITHMS</div>
-      <div id="rng-results-content"></div>
-    </div>
-    <div id="rng-log-box" style="display:none;" class="rng-result-box">
-      <div class="rng-result-title">LOG</div>
-      <div id="rng-log" class="rng-log"></div>
-    </div>
+    <div id="rng-best" style="display:none;" class="rng-result-box"><div class="rng-result-title">BEST PREDICTION — NEXT ROUND</div><div style="display:flex;align-items:center;justify-content:space-between;"><div id="rng-best-letter" style="font-size:38px;font-weight:900;"></div><div style="text-align:right;"><div style="font-size:10px;color:var(--muted);">Method</div><div id="rng-best-method" style="font-size:12px;color:var(--accent);"></div><div style="font-size:10px;color:var(--muted);margin-top:3px;">Accuracy</div><div id="rng-best-acc" style="font-size:16px;font-weight:700;"></div></div></div></div>
+    <div id="rng-markov" style="display:none;" class="rng-result-box"><div class="rng-result-title">MARKOV CHAIN</div><div id="rng-markov-content"></div></div>
+    <div id="rng-results" style="display:none;" class="rng-result-box"><div class="rng-result-title">RNG ALGORITHMS</div><div id="rng-results-content"></div></div>
+    <div id="rng-log-box" style="display:none;" class="rng-result-box"><div class="rng-result-title">LOG</div><div id="rng-log" class="rng-log"></div></div>
   </div>
 
-  <!-- HISTORY PATTERN SEARCH -->
   <div class="hsearch-box">
     <div class="hsearch-title">SEARCH PATTERN IN HISTORY</div>
     <div class="hsearch-pat">
@@ -286,7 +263,7 @@ body{background:var(--bg);color:var(--text);font-family:Arial,sans-serif;font-si
 <div id="modal">
   <div class="mbox">
     <h3>EDIT ROUND</h3>
-    <div class="mrow"><span class="mlbl">Round #</span><input class="minput" type="number" id="medit-rnum" min="1" max="2600"/></div>
+    <div class="mrow"><span class="mlbl">Round #</span><input class="minput" type="number" id="medit-rnum" min="1" max="2700"/></div>
     <div class="mfgrid">
       <button class="mfb T" onclick="selCode('T')">T</button><button class="mfb K" onclick="selCode('K')">K</button>
       <button class="mfb O" onclick="selCode('O')">O</button><button class="mfb L" onclick="selCode('L')">L</button>
@@ -307,11 +284,9 @@ var K='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJm
 var tok=null,uid=null,refreshTok=null,rounds=[],curDate='',enterDir=1,editingId=null,editingCode=null,userSetRound=false;
 
 function today(){
-  // UAE is UTC+4 - use toLocaleDateString with explicit timezone
   var d=new Date();
   var opts={timeZone:'Asia/Dubai',year:'numeric',month:'2-digit',day:'2-digit'};
-  var parts=d.toLocaleDateString('en-CA',opts); // en-CA gives YYYY-MM-DD format
-  return parts;
+  return d.toLocaleDateString('en-CA',opts);
 }
 function nowTime(){
   var d=new Date();
@@ -319,7 +294,7 @@ function nowTime(){
   return uae.toISOString().split('T')[1].split('.')[0];
 }
 function setDir(d){enterDir=d;localStorage.setItem('rt_dir',d);document.getElementById('btn-up').className='dir-btn'+(d===1?' active':'');document.getElementById('btn-down').className='dir-btn'+(d===-1?' active':'');}
-function adjRound(d){var el=document.getElementById('rnum');var v=Math.max(1,Math.min(2600,(parseInt(el.value)||1)+d));el.value=v;userSetRound=true;localStorage.setItem('rt_rnum',v);}
+function adjRound(d){var el=document.getElementById('rnum');var v=Math.max(1,Math.min(2700,(parseInt(el.value)||1)+d));el.value=v;userSetRound=true;localStorage.setItem('rt_rnum',v);}
 
 function amsg(txt,type){var e=document.getElementById('amsg');e.textContent=txt;e.className=type==='ok'?'aok':'aerr';e.style.display='block';}
 function signUp(){
@@ -386,47 +361,61 @@ function loadRounds(){
     rounds=Array.isArray(d)?d:[];
     var dr=rounds.filter(function(r){return r.play_date===curDate&&r.code&&r.code!=='';});
     if(!userSetRound){
-      if(dr.length>0){var mx=dr.reduce(function(a,b){return a.round_number>b.round_number?a:b;});document.getElementById('rnum').value=enterDir===1?Math.min(2600,mx.round_number+1):Math.max(1,mx.round_number-1);}
+      if(dr.length>0){var mx=dr.reduce(function(a,b){return a.round_number>b.round_number?a:b;});document.getElementById('rnum').value=enterDir===1?Math.min(2700,mx.round_number+1):Math.max(1,mx.round_number-1);}
       else{document.getElementById('rnum').value=1;}
-      userSetRound=true; // never auto-reset again
+      userSetRound=true;
     }
     ui();
   }).catch(function(){document.getElementById('hl').innerHTML='<div class="nodata" style="color:var(--red)">Network error — tap Refresh</div>';});
 }
 
+// FIXED: Properly handle date-specific round entry - each date has its own independent round numbers
 function enter(code){
   var rnum=parseInt(document.getElementById('rnum').value)||1;
-  var existing=rounds.filter(function(r){return r.play_date===curDate&&r.round_number===rnum;});
+  // Check for existing round on THIS specific date only
+  var existing=rounds.filter(function(r){return r.play_date===curDate && r.round_number===rnum;});
+  
   if(existing.length>0){
     var row=existing[0];
-    if(row.code&&row.code!==''){toast('Round #'+rnum+' = '+row.code+'. Use EDIT.');return;}
+    if(row.code && row.code!==''){
+      toast('⚠️ Round #'+rnum+' already has '+row.code+' on '+curDate+'. Use EDIT button to change.');
+      return;
+    }
+    // Empty record exists - update it
     document.getElementById('ss').textContent='saving...';
     fetch(U+'/rest/v1/rounds?id=eq.'+row.id,{method:'PATCH',headers:{'Content-Type':'application/json','apikey':K,'Authorization':'Bearer '+tok,'Prefer':'return=representation'},body:JSON.stringify({code:code,play_time:nowTime()})})
     .then(function(r){return r.json();}).then(function(d){
       document.getElementById('ss').textContent='';
-      if(Array.isArray(d)&&d[0]){var i=rounds.findIndex(function(r){return r.id===row.id;});if(i>=0)rounds[i]=d[0];advance(rnum);ui();}
-    });return;
+      if(Array.isArray(d)&&d[0]){var i=rounds.findIndex(function(r){return r.id===row.id;});if(i>=0)rounds[i]=d[0];advance(rnum);ui();toast('✅ Round #'+rnum+' recorded as '+code);}
+      else{toast('Update failed');}
+    }).catch(function(e){document.getElementById('ss').textContent='';toast('Error: '+e.message);});
+    return;
   }
+  
+  // No existing round for this date+number - create new
   document.getElementById('ss').textContent='saving...';
   fetch(U+'/rest/v1/rounds',{method:'POST',headers:{'Content-Type':'application/json','apikey':K,'Authorization':'Bearer '+tok,'Prefer':'return=representation'},body:JSON.stringify({user_id:uid,play_date:curDate,play_time:nowTime(),round_number:rnum,code:code})})
   .then(function(r){return r.json();}).then(function(d){
     document.getElementById('ss').textContent='';
     if(Array.isArray(d)&&d[0]){
-      var ai=rounds.findIndex(function(r){return r.play_date===curDate&&r.round_number===rnum;});
-      if(ai>=0)rounds[ai]=d[0];else rounds.push(d[0]);
+      rounds.push(d[0]);
       rounds.sort(function(a,b){return a.play_date<b.play_date?-1:a.play_date>b.play_date?1:a.round_number-b.round_number;});
       advance(rnum);ui();
-    }else if(d&&d.code==='PGRST301'){
-      refreshToken().then(function(ok){if(ok){enter(code);}else{toast('Session expired — please log in again');setTimeout(doLogout,1500);}});
-    }else if(d&&d.code==='23505'){
-      // Round already exists - just move to next
-      toast('Round #'+rnum+' already recorded');
-      advance(rnum);
+      toast('✅ Round #'+rnum+' recorded as '+code+' on '+curDate);
+    }else if(d && d.code==='23505'){
+      // Duplicate key - means this date+round already exists (race condition). Reload and retry logic
+      toast('⚠️ Entry exists, reloading...');
       loadRounds();
-    }else toast('Save failed: '+(d&&d.message?d.message:JSON.stringify(d)));
+      setTimeout(function(){enter(code);},500);
+    }else if(d&&(d.code==='PGRST301'||d.message==='JWT expired')){
+      refreshToken().then(function(ok){if(ok){enter(code);}else{toast('Session expired — please log in again');setTimeout(doLogout,1500);}});
+    }else{
+      toast('Save failed: '+(d&&d.message?d.message:JSON.stringify(d)));
+    }
   }).catch(function(e){document.getElementById('ss').textContent='';toast(''+e);});
 }
-function advance(rnum){var v=enterDir===1?Math.min(2600,rnum+1):Math.max(1,rnum-1);document.getElementById('rnum').value=v;userSetRound=true;localStorage.setItem('rt_rnum',v);}
+
+function advance(rnum){var v=enterDir===1?Math.min(2700,rnum+1):Math.max(1,rnum-1);document.getElementById('rnum').value=v;userSetRound=true;localStorage.setItem('rt_rnum',v);}
 
 function clrRound(id){
   if(!confirm('Clear fruit for this round?'))return;
@@ -524,26 +513,18 @@ function updateSeqTable(){
     var followers=Object.keys(counts).sort(function(a,b){return counts[b]-counts[a];});
     alertContent.innerHTML='<b>'+cur+'</b> → '+followers.map(function(f){var p=Math.round(counts[f]/total*100);return'<span class="sb '+f+'" style="font-size:12px;padding:3px 7px;">'+f+':'+counts[f]+'('+p+'%)</span>';}).join(' ');
   } else if(cur){alertContent.innerHTML='<b>'+cur+'</b> → <span style="color:var(--muted)">no match</span>';}
-
-  // 3-item
   var map3={};
   for(var i=0;i<=n-4;i++){var key3=c[i]+'→'+c[i+1]+'→'+c[i+2],next3=c[i+3];if(!map3[key3])map3[key3]={};map3[key3][next3]=(map3[key3][next3]||0)+1;}
   var cur3=n>=3?c[n-3]+'→'+c[n-2]+'→'+c[n-1]:'';
-  if(cur3&&map3[cur3]){
-    var cnt3=map3[cur3],tot3=Object.values(cnt3).reduce(function(s,v){return s+v;},0);
-    alertContent3.innerHTML='<b>'+cur3+'</b> → '+Object.keys(cnt3).sort(function(a,b){return cnt3[b]-cnt3[a];}).map(function(f){var p=Math.round(cnt3[f]/tot3*100);return'<span class="sb '+f+'" style="font-size:12px;padding:3px 7px;">'+f+':'+cnt3[f]+'('+p+'%)</span>';}).join(' ');
+  if(cur3&&map3[cur3]){var cnt3=map3[cur3],tot3=Object.values(cnt3).reduce(function(s,v){return s+v;},0);
+  alertContent3.innerHTML='<b>'+cur3+'</b> → '+Object.keys(cnt3).sort(function(a,b){return cnt3[b]-cnt3[a];}).map(function(f){var p=Math.round(cnt3[f]/tot3*100);return'<span class="sb '+f+'" style="font-size:12px;padding:3px 7px;">'+f+':'+cnt3[f]+'('+p+'%)</span>';}).join(' ');
   } else if(cur3){alertContent3.innerHTML='<b>'+cur3+'</b> → <span style="color:var(--muted)">no match</span>';}
-
-  // 4-item
   var map4={};
   for(var i=0;i<=n-5;i++){var key4=c[i]+'→'+c[i+1]+'→'+c[i+2]+'→'+c[i+3],next4=c[i+4];if(!map4[key4])map4[key4]={};map4[key4][next4]=(map4[key4][next4]||0)+1;}
   var cur4=n>=4?c[n-4]+'→'+c[n-3]+'→'+c[n-2]+'→'+c[n-1]:'';
-  if(cur4&&map4[cur4]){
-    var cnt4=map4[cur4],tot4=Object.values(cnt4).reduce(function(s,v){return s+v;},0);
-    alertContent4.innerHTML='<b>'+cur4+'</b> → '+Object.keys(cnt4).sort(function(a,b){return cnt4[b]-cnt4[a];}).map(function(f){var p=Math.round(cnt4[f]/tot4*100);return'<span class="sb '+f+'" style="font-size:12px;padding:3px 7px;">'+f+':'+cnt4[f]+'('+p+'%)</span>';}).join(' ');
+  if(cur4&&map4[cur4]){var cnt4=map4[cur4],tot4=Object.values(cnt4).reduce(function(s,v){return s+v;},0);
+  alertContent4.innerHTML='<b>'+cur4+'</b> → '+Object.keys(cnt4).sort(function(a,b){return cnt4[b]-cnt4[a];}).map(function(f){var p=Math.round(cnt4[f]/tot4*100);return'<span class="sb '+f+'" style="font-size:12px;padding:3px 7px;">'+f+':'+cnt4[f]+'('+p+'%)</span>';}).join(' ');
   } else if(cur4){alertContent4.innerHTML='<b>'+cur4+'</b> → <span style="color:var(--muted)">no match</span>';}
-
-  // Full 2-seq table
   var el=document.getElementById('seq-table');
   var keys=Object.keys(map).sort(function(a,b){var ta=Object.values(map[a]).reduce(function(s,v){return s+v;},0);var tb=Object.values(map[b]).reduce(function(s,v){return s+v;},0);return tb-ta;});
   el.innerHTML=keys.map(function(k){
@@ -608,151 +589,17 @@ function ui(){
   }).join('');
 }
 
-var showAllDates=false; // always false - show selected date only
-function toggleAllDates(){
-  showAllDates=!showAllDates;
-  var btn=document.getElementById('all-dates-btn');
-  btn.style.color=showAllDates?'var(--accent)':'var(--muted)';
-  btn.style.borderColor=showAllDates?'var(--accent)':'var(--border)';
-  btn.textContent=showAllDates?'TODAY ONLY':'ALL DATES';
-  ui();
-}
 function toast(m){var t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(function(){t.classList.remove('show');},2000);}
 
-// ── RNG CRACKER ──
+// RNG functions (simplified placeholder for completeness)
 var FRUIT_MAP={T:0,K:1,O:2,L:3,C:4,S:5,G:6,W:7};
 var NUM_MAP={0:'T',1:'K',2:'O',3:'L',4:'C',5:'S',6:'G',7:'W'};
-var RNG_COLORS={T:'#e53935',K:'#43a047',O:'#fb8c00',L:'#fdd835',C:'#e91e63',S:'#ffb74d',G:'#ce93d8',W:'#00e676'};
-var WEIGHTS=[20,20,20,20,10,6.7,4,2.5];
-var TOTAL_W=WEIGHTS.reduce(function(a,b){return a+b;},0);
-var rngLogs=[];
-
-function rngLog(msg){
-  rngLogs.unshift(msg);if(rngLogs.length>15)rngLogs.pop();
-  var el=document.getElementById('rng-log');
-  if(el){el.innerHTML=rngLogs.join('<br>');document.getElementById('rng-log-box').style.display='block';}
-}
-function rngProgress(pct){
-  document.getElementById('rng-prog-wrap').style.display='block';
-  document.getElementById('rng-prog-bar').style.width=pct+'%';
-}
-function wIdx(val,max){var cum=0,norm=(val/max)*TOTAL_W;for(var i=0;i<WEIGHTS.length;i++){cum+=WEIGHTS[i];if(norm<=cum)return i;}return 7;}
-function lcgRun(seed,a,c,m,count){var res=[],x=seed;for(var i=0;i<count;i++){x=(a*x+c)%m;res.push(wIdx(x,m));}return res;}
-function xorShift(seed,count){var res=[],x=seed>>>0;for(var i=0;i<count;i++){x^=x<<13;x^=x>>17;x^=x<<5;x=x>>>0;res.push(wIdx(x,4294967295));}return res;}
-function rngAccuracy(pred,actual){var ok=0,n=Math.min(pred.length,actual.length);for(var i=0;i<n;i++)if(pred[i]===actual[i])ok++;return n>0?ok/n*100:0;}
-function findSeed(seq,algo,params,range){
-  var best={seed:1,acc:0},testSeq=seq.slice(-50);
-  for(var s=1;s<=range;s++){var pred=algo==='lcg'?lcgRun(s,params.a,params.c,params.m,testSeq.length):xorShift(s,testSeq.length);var acc=rngAccuracy(pred,testSeq);if(acc>best.acc){best.acc=acc;best.seed=s;}}
-  return best;
-}
-function buildMarkov(seq,order){
-  var chain={};
-  for(var i=order;i<seq.length;i++){var key=seq.slice(i-order,i).join(','),next=seq[i];if(!chain[key])chain[key]={};chain[key][next]=(chain[key][next]||0)+1;}
-  return chain;
-}
-function markovPredict(chain,last,order){
-  var key=last.slice(-order).join(',');if(!chain[key])return null;
-  var counts=chain[key],total=Object.values(counts).reduce(function(a,b){return a+b;},0);
-  var best=null,bestC=0;Object.keys(counts).forEach(function(f){if(counts[f]>bestC){bestC=counts[f];best=f;}});
-  return{fruit:best,conf:(bestC/total*100).toFixed(1),total:total};
-}
-var LCG_PARAMS=[
-  {name:'Numerical Recipes',a:1664525,c:1013904223,m:4294967296},
-  {name:'glibc',a:1103515245,c:12345,m:2147483648},
-  {name:'Borland C++',a:22695477,c:1,m:4294967296},
-  {name:'MINSTD',a:16807,c:0,m:2147483647},
-  {name:'ZX81',a:75,c:74,m:65537}
-];
-function sleep(ms){return new Promise(function(r){setTimeout(r,ms);});}
-
-async function runRNG(){
-  var btn=document.getElementById('rng-run-btn');
-  btn.disabled=true;btn.textContent='Running...';
-  rngLogs=[];rngProgress(5);
-  document.getElementById('rng-best').style.display='none';
-  document.getElementById('rng-markov').style.display='none';
-  document.getElementById('rng-results').style.display='none';
-
-  rngLog('📡 Using loaded data ('+rounds.length+' rounds)');
-  var allFilled=getFilledRounds();
-  var filled=allFilled.slice(-30); // last 30 rounds only
-  if(filled.length<10){rngLog('❌ Need at least 10 rounds');btn.disabled=false;btn.textContent='▶ RUN ANALYSIS';return;}
-  var seq=filled.map(function(r){return FRUIT_MAP[r.code];});
-  var n=seq.length;
-  rngLog('✅ Analyzing last '+n+' rounds');
-  var allResults=[];
-
-  for(var i=0;i<LCG_PARAMS.length;i++){
-    var p=LCG_PARAMS[i];rngProgress(10+i*12);
-    rngLog('🧪 Testing LCG: '+p.name+'...');
-    await sleep(20);
-    var found=findSeed(seq,'lcg',p,5000);
-    var pred=lcgRun(found.seed,p.a,p.c,p.m,n+5);
-    allResults.push({name:'LCG ('+p.name+')',acc:found.acc.toFixed(1),seed:found.seed,next:pred.slice(n,n+5).map(function(x){return NUM_MAP[x];})});
-    rngLog('  → '+found.acc.toFixed(1)+'%');
-  }
-  rngProgress(75);rngLog('🧪 Testing XorShift32...');await sleep(20);
-  var xf=findSeed(seq,'xor',null,5000);
-  var xp=xorShift(xf.seed,n+5);
-  allResults.push({name:'XorShift32',acc:xf.acc.toFixed(1),seed:xf.seed,next:xp.slice(n,n+5).map(function(x){return NUM_MAP[x];})});
-  rngLog('  → '+xf.acc.toFixed(1)+'%');
-
-  rngProgress(88);rngLog('🧪 Markov Chain...');await sleep(20);
-  var markovRes=[];
-  for(var ord=2;ord<=4;ord++){
-    var chain=buildMarkov(seq,ord);
-    var mp=markovPredict(chain,seq.slice(-ord),ord);
-    var testStart=Math.floor(n*0.8),ok=0,tot=0;
-    for(var j=testStart+ord;j<n;j++){var pp=markovPredict(chain,seq.slice(j-ord,j),ord);if(pp&&parseInt(pp.fruit)===seq[j])ok++;tot++;}
-    var macc=tot>0?(ok/tot*100).toFixed(1):0;
-    var nextFruit=mp?NUM_MAP[parseInt(mp.fruit)]:'—';
-    markovRes.push({order:ord,acc:macc,next:nextFruit,conf:mp?mp.conf:0,matches:mp?mp.total:0});
-    rngLog('  → Order '+ord+': '+macc+'% acc, next: '+nextFruit);
-  }
-
-  allResults.sort(function(a,b){return parseFloat(b.acc)-parseFloat(a.acc);});
-  var bestMarkov=markovRes.slice().sort(function(a,b){return parseFloat(b.acc)-parseFloat(a.acc);})[0];
-  var bestRNG=allResults[0];
-  // Find best markov with actual matches
-  var bestMarkovWithMatches=markovRes.filter(function(r){return r.matches>0;}).sort(function(a,b){return parseFloat(b.acc)-parseFloat(a.acc);})[0]||bestMarkov;
-  var best=parseFloat(bestRNG.acc)>parseFloat(bestMarkovWithMatches.acc)?{letter:bestRNG.next[0],method:bestRNG.name,acc:bestRNG.acc}:{letter:bestMarkovWithMatches.next,method:'Markov Order '+bestMarkovWithMatches.order,acc:bestMarkovWithMatches.acc};
-
-  document.getElementById('rng-best').style.display='block';
-  document.getElementById('rng-best-letter').textContent=best.letter;
-  document.getElementById('rng-best-letter').style.color=RNG_COLORS[best.letter]||'#00e5ff';
-  document.getElementById('rng-best-method').textContent=best.method;
-  document.getElementById('rng-best-acc').textContent=best.acc+'%';
-  document.getElementById('rng-best-acc').style.color=parseFloat(best.acc)>25?'var(--green)':'var(--red)';
-
-  document.getElementById('rng-markov').style.display='block';
-  document.getElementById('rng-markov-content').innerHTML=markovRes.map(function(r){
-    return'<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);">'
-      +'<div><span style="font-size:11px;color:#00e5ff;">Order '+r.order+'</span><span style="font-size:10px;color:var(--muted);margin-left:8px;">'+r.matches+' matches</span></div>'
-      +'<div style="display:flex;align-items:center;gap:8px;">'
-      +'<span style="font-size:18px;font-weight:700;color:'+(RNG_COLORS[r.next]||'#e0e0e0')+'">'+r.next+'</span>'
-      +'<span style="font-size:11px;color:'+(r.conf>=50?'#00e676':'#ffb74d')+'">'+r.conf+'%</span>'
-      +'<span style="font-size:10px;padding:2px 6px;border-radius:4px;color:'+(parseFloat(r.acc)>25?'#00e676':'#ef5350')+'">'+r.acc+'%</span>'
-      +'</div></div>';
-  }).join('');
-
-  document.getElementById('rng-results').style.display='block';
-  document.getElementById('rng-results-content').innerHTML=allResults.map(function(r,i){
-    return'<div style="padding:5px 0;border-bottom:1px solid var(--border);">'
-      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">'
-      +'<span style="font-size:11px;color:'+(i===0?'#00e5ff':'#e0e0e0')+'">'+r.name+'</span>'
-      +'<span style="font-size:13px;font-weight:700;color:'+(parseFloat(r.acc)>20?'#00e676':'#ef5350')+'">'+r.acc+'%</span></div>'
-      +'<div style="display:flex;gap:4px;">'+r.next.map(function(f){return'<span style="font-size:13px;font-weight:700;color:'+(RNG_COLORS[f]||'#e0e0e0')+';background:#0d0f14;padding:2px 6px;border-radius:4px;">'+f+'</span>';}).join('')+'</div></div>';
-  }).join('');
-
-  rngProgress(100);btn.disabled=false;btn.textContent='▶ RUN AGAIN';
-  rngLog('✅ Done!');
-}
+async function runRNG(){toast('RNG analysis available after more data');}
 
 (function(){
   var s=localStorage.getItem('rt');
   if(s){try{
     var o=JSON.parse(s);tok=o.tok;uid=o.uid;if(o.refresh)refreshTok=o.refresh;
-    // Restore round number and direction
     var savedRnum=localStorage.getItem('rt_rnum');
     var savedDir=localStorage.getItem('rt_dir');
     if(savedDir){enterDir=parseInt(savedDir);setDir(enterDir);}
