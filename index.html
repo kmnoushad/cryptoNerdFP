@@ -268,7 +268,10 @@ body{background:var(--bg);color:var(--text);font-family:Arial,sans-serif;font-si
     <div class="hsearch-results" id="hsearch-results"></div>
   </div>
 
-  <div class="hhdr"><div class="htitle">HISTORY</div></div>
+  <div class="hhdr">
+  <div class="htitle">HISTORY</div>
+  <button onclick="toggleAllDates()" id="all-dates-btn" style="background:transparent;border:1px solid var(--border);color:var(--muted);border-radius:5px;font-size:11px;padding:4px 8px;cursor:pointer;">ALL DATES</button>
+</div>
   <div class="hlist" id="hl"><div class="nodata">Loading...</div></div>
 
   <div class="wr-box" style="margin-top:8px;">
@@ -317,8 +320,8 @@ function nowTime(){
   var uae=new Date(d.getTime()+4*60*60*1000);
   return uae.toISOString().split('T')[1].split('.')[0];
 }
-function setDir(d){enterDir=d;document.getElementById('btn-up').className='dir-btn'+(d===1?' active':'');document.getElementById('btn-down').className='dir-btn'+(d===-1?' active':'');}
-function adjRound(d){var el=document.getElementById('rnum');el.value=Math.max(1,Math.min(2600,(parseInt(el.value)||1)+d));userSetRound=true;}
+function setDir(d){enterDir=d;localStorage.setItem('rt_dir',d);document.getElementById('btn-up').className='dir-btn'+(d===1?' active':'');document.getElementById('btn-down').className='dir-btn'+(d===-1?' active':'');}
+function adjRound(d){var el=document.getElementById('rnum');var v=Math.max(1,Math.min(2600,(parseInt(el.value)||1)+d));el.value=v;userSetRound=true;localStorage.setItem('rt_rnum',v);}
 
 function amsg(txt,type){var e=document.getElementById('amsg');e.textContent=txt;e.className=type==='ok'?'aok':'aerr';e.style.display='block';}
 function signUp(){
@@ -424,7 +427,7 @@ function enter(code){
     }else toast('Save failed: '+(d&&d.message?d.message:JSON.stringify(d)));
   }).catch(function(e){document.getElementById('ss').textContent='';toast(''+e);});
 }
-function advance(rnum){document.getElementById('rnum').value=enterDir===1?Math.min(2600,rnum+1):Math.max(1,rnum-1);userSetRound=true;}
+function advance(rnum){var v=enterDir===1?Math.min(2600,rnum+1):Math.max(1,rnum-1);document.getElementById('rnum').value=v;userSetRound=true;localStorage.setItem('rt_rnum',v);}
 
 function clrRound(id){
   if(!confirm('Clear fruit for this round?'))return;
@@ -590,7 +593,7 @@ function ui(){
   function sc(cid,bid,code,w,d){var v=since(code);document.getElementById(cid).textContent=v===null?'N/A':v;document.getElementById(bid).className='cbox'+(v!==null&&v>=d?' danger':v!==null&&v>=w?' warn':'');}
   sc('cs','bs','S',22,35);sc('cg','bg','G',37,60);sc('cw','bw','W',60,100);
   updateWinRatio();updateSeqTable();updateFruitCounts();
-  var dateRounds=rounds.filter(function(r){return r.play_date===curDate;}).slice().reverse();
+  var dateRounds=showAllDates?rounds.slice().reverse():rounds.filter(function(r){return r.play_date===curDate;}).slice().reverse();
   var hl=document.getElementById('hl');
   if(!dateRounds.length){hl.innerHTML='<div class="nodata">No rounds for '+curDate+'</div>';return;}
   var filledForIdx=getFilledRounds();
@@ -606,6 +609,15 @@ function ui(){
   }).join('');
 }
 
+var showAllDates=false;
+function toggleAllDates(){
+  showAllDates=!showAllDates;
+  var btn=document.getElementById('all-dates-btn');
+  btn.style.color=showAllDates?'var(--accent)':'var(--muted)';
+  btn.style.borderColor=showAllDates?'var(--accent)':'var(--border)';
+  btn.textContent=showAllDates?'TODAY ONLY':'ALL DATES';
+  ui();
+}
 function toast(m){var t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(function(){t.classList.remove('show');},2000);}
 
 // ── RNG CRACKER ──
@@ -736,7 +748,18 @@ async function runRNG(){
   rngLog('✅ Done!');
 }
 
-(function(){var s=localStorage.getItem('rt');if(s){try{var o=JSON.parse(s);tok=o.tok;uid=o.uid;if(o.refresh)refreshTok=o.refresh;initApp();}catch(e){localStorage.removeItem('rt');}}})();
+(function(){
+  var s=localStorage.getItem('rt');
+  if(s){try{
+    var o=JSON.parse(s);tok=o.tok;uid=o.uid;if(o.refresh)refreshTok=o.refresh;
+    // Restore round number and direction
+    var savedRnum=localStorage.getItem('rt_rnum');
+    var savedDir=localStorage.getItem('rt_dir');
+    if(savedDir){enterDir=parseInt(savedDir);setDir(enterDir);}
+    if(savedRnum){document.getElementById('rnum').value=savedRnum;userSetRound=true;}
+    initApp();
+  }catch(e){localStorage.removeItem('rt');}}
+})();
 </script>
 </body>
 </html>
