@@ -509,7 +509,7 @@ function updateFruitCounts(){
 }
 
 function updateSeqTable(){
-  var hist=getFilledRounds();
+  var hist=getFilledRounds().filter(function(r){return r.play_date===curDate;});
   var c=hist.map(function(r){return r.code;}),n=c.length;
   var alertEl=document.getElementById('seq-alert');
   var alertContent=document.getElementById('seq-alert-content');
@@ -675,8 +675,8 @@ async function runRNG(){
   document.getElementById('rng-results').style.display='none';
 
   rngLog('📡 Using loaded data ('+rounds.length+' rounds)');
-  var allFilled=getFilledRounds();
-  var filled=allFilled.slice(-30); // last 30 rounds only
+  var allFilled=getFilledRounds().filter(function(r){return r.play_date===curDate;});
+  var filled=allFilled.slice(-100); // today's rounds only, last 100
   if(filled.length<10){rngLog('❌ Need at least 10 rounds');btn.disabled=false;btn.textContent='▶ RUN ANALYSIS';return;}
   var seq=filled.map(function(r){return FRUIT_MAP[r.code];});
   var n=seq.length;
