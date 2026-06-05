@@ -375,7 +375,7 @@ function initApp(){document.getElementById('auth').style.display='none';document
 function setToday(){curDate=today();document.getElementById('seldate').value=curDate;userSetRound=false;loadRounds();}
 function onDateChange(){curDate=document.getElementById('seldate').value;userSetRound=false;loadRounds();}
 
-function loadRounds(){
+function loadRounds(){curDate=document.getElementById('seldate').value||today();
   document.getElementById('hl').innerHTML='<div class="nodata">Loading...</div>';
   fetch(U+'/rest/v1/rounds?order=play_date.asc,round_number.asc&limit=9999',{
     headers:{'apikey':K,'Authorization':'Bearer '+tok}
