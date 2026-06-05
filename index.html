@@ -400,7 +400,9 @@ function enter(code){
   var existing=rounds.filter(function(r){return r.play_date===curDate&&r.round_number===rnum;});
   if(existing.length>0){
     var row=existing[0];
-    if(row.code&&row.code!==''){toast('R#'+rnum+' exists on '+row.play_date+' curDate='+curDate);return;}
+    if(row.code&&row.code!==''){
+      // Round exists on same date - allow overwrite via PATCH
+    }
     document.getElementById('ss').textContent='saving...';
     fetch(U+'/rest/v1/rounds?id=eq.'+row.id,{method:'PATCH',headers:{'Content-Type':'application/json','apikey':K,'Authorization':'Bearer '+tok,'Prefer':'return=representation'},body:JSON.stringify({code:code,play_time:nowTime()})})
     .then(function(r){return r.json();}).then(function(d){
@@ -420,8 +422,6 @@ function enter(code){
     }else if(d&&d.code==='PGRST301'){
       refreshToken().then(function(ok){if(ok){enter(code);}else{toast('Session expired — please log in again');setTimeout(doLogout,1500);}});
     }else if(d&&d.code==='23505'){
-      // Round already exists - just move to next
-      toast('Round #'+rnum+' already recorded');
       advance(rnum);
       loadRounds();
     }else toast('Save failed: '+(d&&d.message?d.message:JSON.stringify(d)));
