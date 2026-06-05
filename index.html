@@ -169,7 +169,7 @@ body{background:var(--bg);color:var(--text);font-family:Arial,sans-serif;font-si
   <div class="hdr">
     <h1>ROUND TRACKER</h1>
     <div class="hdr-btns">
-      <button class="hbtn" onclick="loadRounds()">↺ REFRESH</button>
+      <button class="hbtn" id="refresh-btn" onclick="this.textContent='Loading...';loadRounds()">↺ REFRESH</button>
       <button class="hbtn" onclick="doLogout()">LOGOUT</button>
     </div>
   </div>
@@ -383,8 +383,8 @@ function loadRounds(){curDate=document.getElementById('seldate').value||today();
     if(r.status===401){toast('Session expired — please log in again');setTimeout(doLogout,1500);return null;}
     return r.json();
   }).then(function(d){
-    if(!d)return;
-    rounds=Array.isArray(d)?d:[];
+    if(!d||!Array.isArray(d)){toast('Load error - tap refresh');return;}
+    rounds=d;
     var dr=rounds.filter(function(r){return r.play_date===curDate&&r.code&&r.code!=='';});
     if(!userSetRound){
       if(dr.length>0){var mx=dr.reduce(function(a,b){return a.round_number>b.round_number?a:b;});document.getElementById('rnum').value=enterDir===1?Math.min(2600,mx.round_number+1):Math.max(1,mx.round_number-1);}
@@ -395,7 +395,7 @@ function loadRounds(){curDate=document.getElementById('seldate').value||today();
   }).catch(function(){document.getElementById('hl').innerHTML='<div class="nodata" style="color:var(--red)">Network error — tap Refresh</div>';});
 }
 
-function enter(code){
+function enter(code){if(!code||code==='')return;
   var rnum=parseInt(document.getElementById('rnum').value)||1;
   var existing=rounds.filter(function(r){return r.play_date===curDate&&r.round_number===rnum;});
   if(existing.length>0){
@@ -430,9 +430,12 @@ function enter(code){
 function advance(rnum){var v=enterDir===1?Math.min(2600,rnum+1):Math.max(1,rnum-1);document.getElementById('rnum').value=v;userSetRound=true;localStorage.setItem('rt_rnum',v);}
 
 function clrRound(id){
-  if(!confirm('Clear fruit for this round?'))return;
-  fetch(U+'/rest/v1/rounds?id=eq.'+id,{method:'PATCH',headers:{'Content-Type':'application/json','apikey':K,'Authorization':'Bearer '+tok,'Prefer':'return=representation'},body:JSON.stringify({code:''})})
-  .then(function(r){return r.json();}).then(function(d){if(Array.isArray(d)&&d[0]){var i=rounds.findIndex(function(r){return r.id===id;});if(i>=0)rounds[i]=d[0];ui();toast('Cleared');}});
+  if(!confirm('Delete this round?'))return;
+  fetch(U+'/rest/v1/rounds?id=eq.'+id,{method:'DELETE',headers:{'apikey':K,'Authorization':'Bearer '+tok}})
+  .then(function(){
+    rounds=rounds.filter(function(r){return r.id!==id;});
+    ui();toast('Deleted');
+  });
 }
 function openEdit(id){
   var r=rounds.find(function(x){return x.id===id;});if(!r)return;
@@ -592,7 +595,7 @@ function ui(){
   ['T','K','O','L','C','S','G','W'].forEach(function(c){var b=document.querySelector('.fb.'+c);if(b)b.classList.toggle('predicted',p.t===c);});
   function sc(cid,bid,code,w,d){var v=since(code);document.getElementById(cid).textContent=v===null?'N/A':v;document.getElementById(bid).className='cbox'+(v!==null&&v>=d?' danger':v!==null&&v>=w?' warn':'');}
   sc('cs','bs','S',22,35);sc('cg','bg','G',37,60);sc('cw','bw','W',60,100);
-  updateWinRatio();updateSeqTable();updateFruitCounts();
+  updateWinRatio();updateSeqTable();updateFruitCounts();var rb=document.getElementById('refresh-btn');if(rb)rb.textContent='↺ REFRESH';
   var dateRounds=rounds.filter(function(r){return r.play_date===curDate;}).sort(function(a,b){return b.round_number-a.round_number;});
   var hl=document.getElementById('hl');
   if(!dateRounds.length){hl.innerHTML='<div class="nodata">No rounds for today</div>';return;}
