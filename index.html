@@ -268,10 +268,7 @@ body{background:var(--bg);color:var(--text);font-family:Arial,sans-serif;font-si
     <div class="hsearch-results" id="hsearch-results"></div>
   </div>
 
-  <div class="hhdr">
-  <div class="htitle">HISTORY</div>
-  <button onclick="toggleAllDates()" id="all-dates-btn" style="background:transparent;border:1px solid var(--border);color:var(--muted);border-radius:5px;font-size:11px;padding:4px 8px;cursor:pointer;">ALL DATES</button>
-</div>
+  <div class="hhdr"><div class="htitle">HISTORY</div></div>
   <div class="hlist" id="hl"><div class="nodata">Loading...</div></div>
 
   <div class="wr-box" style="margin-top:8px;">
@@ -609,7 +606,7 @@ function ui(){
   }).join('');
 }
 
-var showAllDates=false;
+var showAllDates=false; // always false - show selected date only
 function toggleAllDates(){
   showAllDates=!showAllDates;
   var btn=document.getElementById('all-dates-btn');
