@@ -673,11 +673,12 @@ async function runRNG(){
   document.getElementById('rng-results').style.display='none';
 
   rngLog('📡 Using loaded data ('+rounds.length+' rounds)');
-  var filled=getFilledRounds();
+  var allFilled=getFilledRounds();
+  var filled=allFilled.slice(-30); // last 30 rounds only
   if(filled.length<10){rngLog('❌ Need at least 10 rounds');btn.disabled=false;btn.textContent='▶ RUN ANALYSIS';return;}
   var seq=filled.map(function(r){return FRUIT_MAP[r.code];});
   var n=seq.length;
-  rngLog('✅ Analyzing '+n+' rounds');
+  rngLog('✅ Analyzing last '+n+' rounds');
   var allResults=[];
 
   for(var i=0;i<LCG_PARAMS.length;i++){
