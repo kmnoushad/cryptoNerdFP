@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
-<title>Round Tracker - Fixed</title>
+<title>Round Tracker - Working</title>
 <style>
 :root{--bg:#0a0c10;--panel:#111318;--border:#1e2330;--accent:#00e5ff;--green:#00e676;--purple:#ce93d8;--orange:#ffb74d;--red:#ef5350;--yellow:#ffd600;--text:#e0e0e0;--muted:#555e70;}
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
@@ -279,20 +279,49 @@ body{background:var(--bg);color:var(--text);font-family:Arial,sans-serif;font-si
 <div class="toast" id="toast"></div>
 
 <script>
-var U='https://rfdczqbszgnujeyxxiul.supabase.co';
-var K='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJmZGN6cWJzemdudWpleXh4aXVsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAzMTc4MTMsImV4cCI6MjA5NTg5MzgxM30.HLSue6rAKMWM4VFSTCxOEExvPylvetYrPTvWCwvIJaI';
-var tok=null,uid=null,refreshTok=null,rounds=[],curDate='',enterDir=1,editingId=null,editingCode=null,userSetRound=false;
-var isSaving = false; // Prevent multiple simultaneous saves
+// Supabase configuration
+var U = 'https://rfdczqbszgnujeyxxiul.supabase.co';
+var K = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJmZGN6cWJzemdudWpleXh4aXVsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAzMTc4MTMsImV4cCI6MjA5NTg5MzgxM30.HLSue6rAKMWM4VFSTCxOEExvPylvetYrPTvWCwvIJaI';
 
-function today(){
-  var d=new Date();
-  var opts={timeZone:'Asia/Dubai',year:'numeric',month:'2-digit',day:'2-digit'};
-  return d.toLocaleDateString('en-CA',opts);
+var tok = null;
+var uid = null;
+var refreshTok = null;
+var rounds = [];
+var curDate = '';
+var enterDir = 1;
+var editingId = null;
+var editingCode = null;
+var userSetRound = false;
+
+function today() {
+  var d = new Date();
+  var year = d.getFullYear();
+  var month = String(d.getMonth() + 1).padStart(2, '0');
+  var day = String(d.getDate()).padStart(2, '0');
+  return year + '-' + month + '-' + day;
 }
-function nowTime(){
-  var d=new Date();
-  var uae=new Date(d.getTime()+4*60*60*1000);
-  return uae.toISOString().split('T')[1].split('.')[0];
+
+function nowTime() {
+  var d = new Date();
+  return d.toTimeString().substring(0, 5);
 }
-function setDir(d){enterDir=d;localStorage.setItem('rt_dir',d);document.getElementById('btn-up').className='dir-btn'+(d===1?' active':'');document.getElementById('btn-down').className='dir-btn'+(d===-1?' active':'');}
-function adjRound(d){var el=document.getElementById('rnum');var v=Math.max(1,Math.min(2700,(parseInt(el.value)||1)+d
+
+function setDir(d) {
+  enterDir = d;
+  localStorage.setItem('rt_dir', d);
+  document.getElementById('btn-up').className = 'dir-btn' + (d === 1 ? ' active' : '');
+  document.getElementById('btn-down').className = 'dir-btn' + (d === -1 ? ' active' : '');
+}
+
+function adjRound(d) {
+  var el = document.getElementById('rnum');
+  var v = Math.max(1, Math.min(2700, (parseInt(el.value) || 1) + d));
+  el.value = v;
+  userSetRound = true;
+  localStorage.setItem('rt_rnum', v);
+}
+
+function amsg(txt, type) {
+  var e = document.getElementById('amsg');
+  e.textContent = txt;
+  e.className = type === 'ok' ? '
