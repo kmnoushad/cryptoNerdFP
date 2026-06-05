@@ -520,7 +520,7 @@ function updateFruitCounts(){
 }
 
 function updateSeqTable(){
-  var hist=getFilledRounds();
+  var hist=getFilledRounds().filter(function(r){return r.play_date===curDate;});
   var c=hist.map(function(r){return r.code;}),n=c.length;
   var alertEl=document.getElementById('seq-alert');
   var alertContent=document.getElementById('seq-alert-content');
@@ -604,9 +604,9 @@ function ui(){
   function sc(cid,bid,code,w,d){var v=since(code);document.getElementById(cid).textContent=v===null?'N/A':v;document.getElementById(bid).className='cbox'+(v!==null&&v>=d?' danger':v!==null&&v>=w?' warn':'');}
   sc('cs','bs','S',22,35);sc('cg','bg','G',37,60);sc('cw','bw','W',60,100);
   updateWinRatio();updateSeqTable();updateFruitCounts();var rb=document.getElementById('refresh-btn');if(rb)rb.textContent='↺ REFRESH';
-  var dateRounds=rounds.filter(function(r){return r.code&&r.code!=='';}).sort(function(a,b){return b.round_number-a.round_number;});
+  var dateRounds=rounds.filter(function(r){return r.play_date===curDate&&r.code&&r.code!=='';}).sort(function(a,b){return b.round_number-a.round_number;});
   var hl=document.getElementById('hl');
-  if(!dateRounds.length){hl.innerHTML='<div class="nodata">No rounds yet</div>';return;}
+  if(!dateRounds.length){hl.innerHTML='<div class="nodata">No rounds for '+curDate+'</div>';return;}
   var filledForIdx=getFilledRounds();
   hl.innerHTML=dateRounds.map(function(r){
     var isEmpty=!r.code||r.code==='';
@@ -686,7 +686,7 @@ async function runRNG(){
   document.getElementById('rng-results').style.display='none';
 
   rngLog('📡 Using loaded data ('+rounds.length+' rounds)');
-  var filled=getFilledRounds().slice(-200);
+  var filled=getFilledRounds().filter(function(r){return r.play_date===curDate;}).slice(-200);
   rngLog('📊 Using '+filled.length+' rounds for analysis');
   if(filled.length<10){rngLog('❌ Need at least 10 rounds (have '+filled.length+') — tap Refresh first');btn.disabled=false;btn.textContent='▶ RUN ANALYSIS';return;}
   var seq=filled.map(function(r){return FRUIT_MAP[r.code];});
