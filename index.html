@@ -35,7 +35,7 @@ body{background:var(--bg);color:var(--text);font-family:Arial,sans-serif;font-si
 .plbl{font-size:9px;color:var(--muted);letter-spacing:1px;}
 .pval{font-size:26px;font-weight:900;color:var(--muted);}
 .pval.w{color:var(--green);}.pval.g{color:var(--purple);}.pval.s{color:var(--orange);}.pval.c{color:var(--red);}
-.pinfo{font-size:10px;color:var(--muted);text-align:right;line-height:1.6;max-width:55%;}
+.pinfo{font-size:10px;color:var(--muted);text-align:right;line-height:1.6;max-width:55%;white-space:pre-line;}
 .ctrs{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:8px;}
 .cbox{background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:7px;text-align:center;}
 .cbox.warn{border-color:var(--yellow);background:rgba(255,214,0,.06);}
@@ -191,9 +191,9 @@ body{background:var(--bg);color:var(--text);font-family:Arial,sans-serif;font-si
     <div class="pinfo" id="pinfo"></div>
   </div>
   <div class="ctrs">
-    <div class="cbox" id="bs"><div class="clbl">SINCE S ~15</div><div class="cval" id="cs">—</div></div>
-    <div class="cbox" id="bg"><div class="clbl">SINCE G ~25</div><div class="cval" id="cg">—</div></div>
-    <div class="cbox" id="bw"><div class="clbl">SINCE W ~40</div><div class="cval" id="cw">—</div></div>
+    <div class="cbox" id="bs"><div class="clbl">SINCE S</div><div class="cval" id="cs">—</div></div>
+    <div class="cbox" id="bg"><div class="clbl">SINCE G</div><div class="cval" id="cg">—</div></div>
+    <div class="cbox" id="bw"><div class="clbl">SINCE W</div><div class="cval" id="cw">—</div></div>
   </div>
   <div class="isec">
     <div class="ilbl">TAP RESULT</div>
@@ -359,205 +359,325 @@ function loadRounds(){
   }).then(function(d){
     if(!d)return;
     rounds=Array.isArray(d)?d:[];
-    var dr=rounds.filter(function(r){return r.play_date===curDate&&r.code&&r.code!=='';});
+    var dr=rounds.filter(function(r){return r.play_date===curDate && r.code && r.code!=='';});
     if(!userSetRound){
-      if(dr.length>0){var mx=dr.reduce(function(a,b){return a.round_number>b.round_number?a:b;});document.getElementById('rnum').value=enterDir===1?Math.min(2700,mx.round_number+1):Math.max(1,mx.round_number-1);}
-      else{document.getElementById('rnum').value=1;}
+      if(dr.length>0){
+        var mx=dr.reduce(function(a,b){return a.round_number>b.round_number?a:b;});
+        document.getElementById('rnum').value=enterDir===1?Math.min(2700,mx.round_number+1):Math.max(1,mx.round_number-1);
+      } else {
+        document.getElementById('rnum').value=1;
+      }
       userSetRound=true;
     }
     ui();
   }).catch(function(){document.getElementById('hl').innerHTML='<div class="nodata" style="color:var(--red)">Network error — tap Refresh</div>';});
 }
 
-// FIXED: Properly handle date-specific round entry - each date has its own independent round numbers
+// FIXED: The critical fix - properly check for existing round using BOTH date AND round number
 function enter(code){
   var rnum=parseInt(document.getElementById('rnum').value)||1;
-  // Check for existing round on THIS specific date only
-  var existing=rounds.filter(function(r){return r.play_date===curDate && r.round_number===rnum;});
   
-  if(existing.length>0){
-    var row=existing[0];
-    if(row.code && row.code!==''){
+  // CRITICAL FIX: Check for existing round on THIS SPECIFIC DATE only
+  var existingForThisDateAndRound = rounds.filter(function(r){
+    return r.play_date === curDate && r.round_number === rnum;
+  });
+  
+  if(existingForThisDateAndRound.length > 0){
+    var row = existingForThisDateAndRound[0];
+    if(row.code && row.code !== ''){
       toast('⚠️ Round #'+rnum+' already has '+row.code+' on '+curDate+'. Use EDIT button to change.');
       return;
     }
     // Empty record exists - update it
     document.getElementById('ss').textContent='saving...';
-    fetch(U+'/rest/v1/rounds?id=eq.'+row.id,{method:'PATCH',headers:{'Content-Type':'application/json','apikey':K,'Authorization':'Bearer '+tok,'Prefer':'return=representation'},body:JSON.stringify({code:code,play_time:nowTime()})})
-    .then(function(r){return r.json();}).then(function(d){
+    fetch(U+'/rest/v1/rounds?id=eq.'+row.id,{
+      method:'PATCH',
+      headers:{'Content-Type':'application/json','apikey':K,'Authorization':'Bearer '+tok,'Prefer':'return=representation'},
+      body:JSON.stringify({code:code,play_time:nowTime()})
+    }).then(function(r){return r.json();}).then(function(d){
       document.getElementById('ss').textContent='';
-      if(Array.isArray(d)&&d[0]){var i=rounds.findIndex(function(r){return r.id===row.id;});if(i>=0)rounds[i]=d[0];advance(rnum);ui();toast('✅ Round #'+rnum+' recorded as '+code);}
-      else{toast('Update failed');}
+      if(Array.isArray(d)&&d[0]){
+        var i=rounds.findIndex(function(r){return r.id===row.id;});
+        if(i>=0)rounds[i]=d[0];
+        advance(rnum);
+        ui();
+        toast('✅ Round #'+rnum+' recorded as '+code+' on '+curDate);
+      } else {
+        toast('Update failed');
+      }
     }).catch(function(e){document.getElementById('ss').textContent='';toast('Error: '+e.message);});
     return;
   }
   
-  // No existing round for this date+number - create new
+  // No existing round for this date+round_number - create new
   document.getElementById('ss').textContent='saving...';
-  fetch(U+'/rest/v1/rounds',{method:'POST',headers:{'Content-Type':'application/json','apikey':K,'Authorization':'Bearer '+tok,'Prefer':'return=representation'},body:JSON.stringify({user_id:uid,play_date:curDate,play_time:nowTime(),round_number:rnum,code:code})})
-  .then(function(r){return r.json();}).then(function(d){
+  fetch(U+'/rest/v1/rounds',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','apikey':K,'Authorization':'Bearer '+tok,'Prefer':'return=representation'},
+    body:JSON.stringify({user_id:uid,play_date:curDate,play_time:nowTime(),round_number:rnum,code:code})
+  }).then(function(r){return r.json();}).then(function(d){
     document.getElementById('ss').textContent='';
     if(Array.isArray(d)&&d[0]){
       rounds.push(d[0]);
-      rounds.sort(function(a,b){return a.play_date<b.play_date?-1:a.play_date>b.play_date?1:a.round_number-b.round_number;});
-      advance(rnum);ui();
+      rounds.sort(function(a,b){
+        if(a.play_date !== b.play_date) return a.play_date < b.play_date ? -1 : 1;
+        return a.round_number - b.round_number;
+      });
+      advance(rnum);
+      ui();
       toast('✅ Round #'+rnum+' recorded as '+code+' on '+curDate);
-    }else if(d && d.code==='23505'){
-      // Duplicate key - means this date+round already exists (race condition). Reload and retry logic
-      toast('⚠️ Entry exists, reloading...');
+    } else if(d && d.code==='23505'){
+      // Duplicate - means another record with same date+round exists (race condition)
+      toast('⚠️ Reloading data...');
       loadRounds();
       setTimeout(function(){enter(code);},500);
-    }else if(d&&(d.code==='PGRST301'||d.message==='JWT expired')){
-      refreshToken().then(function(ok){if(ok){enter(code);}else{toast('Session expired — please log in again');setTimeout(doLogout,1500);}});
-    }else{
-      toast('Save failed: '+(d&&d.message?d.message:JSON.stringify(d)));
+    } else if(d && (d.code==='PGRST301' || (d.message && d.message.includes('JWT')))){
+      refreshToken().then(function(ok){
+        if(ok){enter(code);}
+        else{toast('Session expired — please log in again');setTimeout(doLogout,1500);}
+      });
+    } else {
+      toast('Save failed: '+(d && d.message ? d.message : JSON.stringify(d)));
     }
-  }).catch(function(e){document.getElementById('ss').textContent='';toast(''+e);});
-}
-
-function advance(rnum){var v=enterDir===1?Math.min(2700,rnum+1):Math.max(1,rnum-1);document.getElementById('rnum').value=v;userSetRound=true;localStorage.setItem('rt_rnum',v);}
-
-function clrRound(id){
-  if(!confirm('Clear fruit for this round?'))return;
-  fetch(U+'/rest/v1/rounds?id=eq.'+id,{method:'PATCH',headers:{'Content-Type':'application/json','apikey':K,'Authorization':'Bearer '+tok,'Prefer':'return=representation'},body:JSON.stringify({code:''})})
-  .then(function(r){return r.json();}).then(function(d){if(Array.isArray(d)&&d[0]){var i=rounds.findIndex(function(r){return r.id===id;});if(i>=0)rounds[i]=d[0];ui();toast('Cleared');}});
-}
-function openEdit(id){
-  var r=rounds.find(function(x){return x.id===id;});if(!r)return;
-  editingId=id;editingCode=r.code;
-  document.getElementById('medit-rnum').value=r.round_number;
-  document.querySelectorAll('.mfb').forEach(function(b){b.classList.toggle('sel',b.textContent===r.code);});
-  document.getElementById('modal').style.display='flex';
-}
-function selCode(c){editingCode=c;document.querySelectorAll('.mfb').forEach(function(b){b.classList.toggle('sel',b.textContent===c);});}
-function closeModal(){document.getElementById('modal').style.display='none';}
-function saveEdit(){
-  if(!editingId||!editingCode)return;
-  var rnum=parseInt(document.getElementById('medit-rnum').value)||1;
-  fetch(U+'/rest/v1/rounds?id=eq.'+editingId,{method:'PATCH',headers:{'Content-Type':'application/json','apikey':K,'Authorization':'Bearer '+tok,'Prefer':'return=representation'},body:JSON.stringify({round_number:rnum,code:editingCode})})
-  .then(function(r){return r.json();}).then(function(d){
-    if(Array.isArray(d)&&d[0]){var i=rounds.findIndex(function(r){return r.id===editingId;});if(i>=0)rounds[i]=d[0];rounds.sort(function(a,b){return a.play_date<b.play_date?-1:a.play_date>b.play_date?1:a.round_number-b.round_number;});closeModal();ui();toast('Saved');}
+  }).catch(function(e){
+    document.getElementById('ss').textContent='';
+    toast('Error: '+e.message);
   });
 }
 
-function getFilledRounds(){return rounds.filter(function(r){return r.code&&r.code!=='';});}
-function getHistory(){return getFilledRounds().slice(-200);}
-function since(code){var c=getFilledRounds().map(function(r){return r.code;});for(var i=c.length-1;i>=0;i--)if(c[i]===code)return c.length-1-i;return null;}
+function advance(rnum){
+  var v = enterDir===1 ? Math.min(2700, rnum+1) : Math.max(1, rnum-1);
+  document.getElementById('rnum').value = v;
+  userSetRound = true;
+  localStorage.setItem('rt_rnum', v);
+}
+
+function clrRound(id){
+  if(!confirm('Clear fruit for this round?')) return;
+  fetch(U+'/rest/v1/rounds?id=eq.'+id,{
+    method:'PATCH',
+    headers:{'Content-Type':'application/json','apikey':K,'Authorization':'Bearer '+tok,'Prefer':'return=representation'},
+    body:JSON.stringify({code:''})
+  }).then(function(r){return r.json();}).then(function(d){
+    if(Array.isArray(d)&&d[0]){
+      var i=rounds.findIndex(function(r){return r.id===id;});
+      if(i>=0) rounds[i]=d[0];
+      ui();
+      toast('Cleared');
+    }
+  });
+}
+
+function openEdit(id){
+  var r=rounds.find(function(x){return x.id===id;});
+  if(!r) return;
+  editingId=id;
+  editingCode=r.code;
+  document.getElementById('medit-rnum').value=r.round_number;
+  document.querySelectorAll('.mfb').forEach(function(b){
+    b.classList.toggle('sel', b.textContent===r.code);
+  });
+  document.getElementById('modal').style.display='flex';
+}
+
+function selCode(c){
+  editingCode=c;
+  document.querySelectorAll('.mfb').forEach(function(b){
+    b.classList.toggle('sel', b.textContent===c);
+  });
+}
+
+function closeModal(){document.getElementById('modal').style.display='none';}
+
+function saveEdit(){
+  if(!editingId||!editingCode) return;
+  var rnum=parseInt(document.getElementById('medit-rnum').value)||1;
+  fetch(U+'/rest/v1/rounds?id=eq.'+editingId,{
+    method:'PATCH',
+    headers:{'Content-Type':'application/json','apikey':K,'Authorization':'Bearer '+tok,'Prefer':'return=representation'},
+    body:JSON.stringify({round_number:rnum,code:editingCode})
+  }).then(function(r){return r.json();}).then(function(d){
+    if(Array.isArray(d)&&d[0]){
+      var i=rounds.findIndex(function(r){return r.id===editingId;});
+      if(i>=0) rounds[i]=d[0];
+      rounds.sort(function(a,b){
+        if(a.play_date !== b.play_date) return a.play_date < b.play_date ? -1 : 1;
+        return a.round_number - b.round_number;
+      });
+      closeModal();
+      ui();
+      toast('Saved');
+    }
+  });
+}
+
+function getFilledRounds(){
+  return rounds.filter(function(r){return r.code && r.code !== '';});
+}
+
+function getHistory(){
+  return getFilledRounds().slice(-200);
+}
+
+function since(code){
+  var c = getFilledRounds().map(function(r){return r.code;});
+  for(var i=c.length-1; i>=0; i--) if(c[i]===code) return c.length-1-i;
+  return null;
+}
 
 function predict(){
-  var hist=getHistory(),c=hist.map(function(r){return r.code;}),n=c.length;
-  if(n<4)return{t:'—',cl:'',info:'need more data',scores:{}};
-  var p0=c[n-3],p1=c[n-2],p2=c[n-1];
+  var hist=getHistory(), c=hist.map(function(r){return r.code;}), n=c.length;
+  if(n<4) return {t:'—', cl:'', info:'need more data', scores:{}};
+  var p0=c[n-3], p1=c[n-2], p2=c[n-1];
   var pg=0,pw=0,ps=0,pc=0;
-  for(var i=0;i<=n-4;i++){if(c[i]===p0&&c[i+1]===p1&&c[i+2]===p2){var x=c[i+3];if(x==='G')pg++;else if(x==='W')pw++;else if(x==='S')ps++;else if(x==='C')pc++;}}
+  for(var i=0;i<=n-4;i++){
+    if(c[i]===p0 && c[i+1]===p1 && c[i+2]===p2){
+      var x=c[i+3];
+      if(x==='G') pg++;
+      else if(x==='W') pw++;
+      else if(x==='S') ps++;
+      else if(x==='C') pc++;
+    }
+  }
   var total=pg+pw+ps+pc;
-  if(total===0)return{t:'—',cl:'',info:'no pattern yet',scores:{G:0,W:0,S:0,C:0}};
-  var mx=Math.max(pg,pw,ps,pc),t,cl;
-  if(pw===mx){t='W';cl='w';}else if(pg===mx){t='G';cl='g';}else if(ps===mx){t='S';cl='s';}else{t='C';cl='c';}
+  if(total===0) return {t:'—', cl:'', info:'no pattern yet', scores:{G:0,W:0,S:0,C:0}};
+  var mx=Math.max(pg,pw,ps,pc), t, cl;
+  if(pw===mx){t='W';cl='w';}
+  else if(pg===mx){t='G';cl='g';}
+  else if(ps===mx){t='S';cl='s';}
+  else{t='C';cl='c';}
   function pct(v){return total>0?Math.round(v/total*100)+'%':'0%';}
   var info='G:'+pg+'('+pct(pg)+') W:'+pw+'('+pct(pw)+')\nS:'+ps+'('+pct(ps)+') C:'+pc+'('+pct(pc)+')';
-  if(n>=3&&c[n-1]===c[n-2]&&c[n-2]===c[n-3])info+='\n🔥'+c[n-1]+' x3';
-  var sw=since('W');if(sw!==null&&sw>=100)info+='\n🚨W DANGER('+sw+')';
-  var sg=since('G');if(sg!==null&&sg>=60)info+='\n⚠️G overdue('+sg+')';
-  return{t:t,cl:cl,info:info,scores:{G:pg,W:pw,S:ps,C:pc}};
+  if(n>=3 && c[n-1]===c[n-2] && c[n-2]===c[n-3]) info+='\n🔥'+c[n-1]+' x3';
+  var sw=since('W'); if(sw!==null && sw>=100) info+='\n🚨W DANGER('+sw+')';
+  var sg=since('G'); if(sg!==null && sg>=60) info+='\n⚠️G overdue('+sg+')';
+  return {t:t, cl:cl, info:info, scores:{G:pg,W:pw,S:ps,C:pc}};
 }
 
 function predAt(idx){
-  var filled=getFilledRounds();if(idx<3)return'';
-  var c=filled.map(function(r){return r.code;});if(idx>=c.length)return'';
-  var p0=c[idx-3],p1=c[idx-2],p2=c[idx-1],g=0,w=0,s=0,cc=0;
+  var filled=getFilledRounds(); if(idx<3) return '';
+  var c=filled.map(function(r){return r.code;}); if(idx>=c.length) return '';
+  var p0=c[idx-3], p1=c[idx-2], p2=c[idx-1], g=0,w=0,s=0,cc=0;
   var start=Math.max(0,idx-200);
-  for(var i=start;i<=idx-4;i++)if(c[i]===p0&&c[i+1]===p1&&c[i+2]===p2){var x=c[i+3];if(x==='G')g++;else if(x==='W')w++;else if(x==='S')s++;else if(x==='C')cc++;}
-  var total=g+w+s+cc;if(total===0)return'';
+  for(var i=start;i<=idx-4;i++){
+    if(c[i]===p0 && c[i+1]===p1 && c[i+2]===p2){
+      var x=c[i+3];
+      if(x==='G') g++;
+      else if(x==='W') w++;
+      else if(x==='S') s++;
+      else if(x==='C') cc++;
+    }
+  }
+  var total=g+w+s+cc; if(total===0) return '';
   var mx=Math.max(g,w,s,cc);
-  if(w===mx)return'W';if(g===mx)return'G';if(s===mx)return'S';return'C';
+  if(w===mx) return 'W';
+  if(g===mx) return 'G';
+  if(s===mx) return 'S';
+  return 'C';
 }
 
 function updateWinRatio(){
-  var filled=getFilledRounds(),c=filled.map(function(r){return r.code;});
-  var allFruits=['T','K','O','L','C','S','G','W'],stats={};
+  var filled=getFilledRounds(), c=filled.map(function(r){return r.code;});
+  var allFruits=['T','K','O','L','C','S','G','W'], stats={};
   allFruits.forEach(function(f){stats[f]={correct:0,total:0};});
-  var totalPred=0,totalCorr=0;
-  for(var i=3;i<c.length;i++){var pr=predAt(i);if(!pr)continue;totalPred++;if(stats[pr]){stats[pr].total++;if(c[i]===pr){stats[pr].correct++;totalCorr++;}}}
+  var totalPred=0, totalCorr=0;
+  for(var i=3;i<c.length;i++){
+    var pr=predAt(i);
+    if(!pr) continue;
+    totalPred++;
+    if(stats[pr]){
+      stats[pr].total++;
+      if(c[i]===pr){stats[pr].correct++; totalCorr++;}
+    }
+  }
   var grid=document.getElementById('wr-grid');
   grid.innerHTML=allFruits.map(function(f){
-    var s=stats[f],pct=s.total>0?Math.round(s.correct/s.total*100):0;
+    var s=stats[f], pct=s.total>0?Math.round(s.correct/s.total*100):0;
     var col=pct>=60?'var(--green)':pct>=35?'var(--yellow)':'var(--red)';
-    return'<div class="wr-item"><div class="wr-fruit '+f+'">'+f+'</div><div class="wr-pct" style="color:'+col+'">'+pct+'%</div><div class="wr-sub">'+s.correct+'/'+s.total+'</div></div>';
+    return '<div class="wr-item"><div class="wr-fruit '+f+'">'+f+'</div><div class="wr-pct" style="color:'+col+'">'+pct+'%</div><div class="wr-sub">'+s.correct+'/'+s.total+'</div></div>';
   }).join('');
   var op=totalPred>0?Math.round(totalCorr/totalPred*100):0;
   document.getElementById('wr-total').innerHTML='<span>Predictions: <b>'+totalPred+'</b></span><span>Overall: <b style="color:'+(op>=40?'var(--green)':'var(--red)')+'">'+op+'%</b></span>';
 }
 
 function updateFruitCounts(){
-  var hist=getFilledRounds().slice(-100),c=hist.map(function(r){return r.code;});
+  var hist=getFilledRounds().slice(-100), c=hist.map(function(r){return r.code;});
   var counts={T:0,K:0,O:0,L:0,C:0,S:0,G:0,W:0};
-  c.forEach(function(x){if(counts[x]!==undefined)counts[x]++;});
-  ['T','K','O','L','C','S','G','W'].forEach(function(f){var el=document.getElementById('fc-'+f);if(el)el.textContent=counts[f]||'';});
+  c.forEach(function(x){if(counts[x]!==undefined) counts[x]++;});
+  ['T','K','O','L','C','S','G','W'].forEach(function(f){
+    var el=document.getElementById('fc-'+f);
+    if(el) el.textContent=counts[f]||'';
+  });
 }
 
 function updateSeqTable(){
   var hist=getFilledRounds();
-  var c=hist.map(function(r){return r.code;}),n=c.length;
+  var c=hist.map(function(r){return r.code;}), n=c.length;
   var alertEl=document.getElementById('seq-alert');
   var alertContent=document.getElementById('seq-alert-content');
   var alertContent3=document.getElementById('seq-alert-content3');
   var alertContent4=document.getElementById('seq-alert-content4');
-  if(n<3){alertEl.style.display='none';return;}
+  if(n<3){alertEl.style.display='none'; return;}
   var map={};
-  for(var i=0;i<=n-3;i++){var key=c[i]+'→'+c[i+1],next=c[i+2];if(!map[key])map[key]={};map[key][next]=(map[key][next]||0)+1;}
+  for(var i=0;i<=n-3;i++){var key=c[i]+'→'+c[i+1], next=c[i+2]; if(!map[key]) map[key]={}; map[key][next]=(map[key][next]||0)+1;}
   var cur=n>=2?c[n-2]+'→'+c[n-1]:'';
   alertEl.style.display='block';
   if(cur&&map[cur]){
-    var counts=map[cur],total=Object.values(counts).reduce(function(s,v){return s+v;},0);
+    var counts=map[cur], total=Object.values(counts).reduce(function(s,v){return s+v;},0);
     var followers=Object.keys(counts).sort(function(a,b){return counts[b]-counts[a];});
-    alertContent.innerHTML='<b>'+cur+'</b> → '+followers.map(function(f){var p=Math.round(counts[f]/total*100);return'<span class="sb '+f+'" style="font-size:12px;padding:3px 7px;">'+f+':'+counts[f]+'('+p+'%)</span>';}).join(' ');
+    alertContent.innerHTML='<b>'+cur+'</b> → '+followers.map(function(f){var p=Math.round(counts[f]/total*100); return'<span class="sb '+f+'" style="font-size:12px;padding:3px 7px;">'+f+':'+counts[f]+'('+p+'%)</span>';}).join(' ');
   } else if(cur){alertContent.innerHTML='<b>'+cur+'</b> → <span style="color:var(--muted)">no match</span>';}
+  
   var map3={};
-  for(var i=0;i<=n-4;i++){var key3=c[i]+'→'+c[i+1]+'→'+c[i+2],next3=c[i+3];if(!map3[key3])map3[key3]={};map3[key3][next3]=(map3[key3][next3]||0)+1;}
+  for(var i=0;i<=n-4;i++){var key3=c[i]+'→'+c[i+1]+'→'+c[i+2], next3=c[i+3]; if(!map3[key3]) map3[key3]={}; map3[key3][next3]=(map3[key3][next3]||0)+1;}
   var cur3=n>=3?c[n-3]+'→'+c[n-2]+'→'+c[n-1]:'';
-  if(cur3&&map3[cur3]){var cnt3=map3[cur3],tot3=Object.values(cnt3).reduce(function(s,v){return s+v;},0);
-  alertContent3.innerHTML='<b>'+cur3+'</b> → '+Object.keys(cnt3).sort(function(a,b){return cnt3[b]-cnt3[a];}).map(function(f){var p=Math.round(cnt3[f]/tot3*100);return'<span class="sb '+f+'" style="font-size:12px;padding:3px 7px;">'+f+':'+cnt3[f]+'('+p+'%)</span>';}).join(' ');
+  if(cur3&&map3[cur3]){var cnt3=map3[cur3], tot3=Object.values(cnt3).reduce(function(s,v){return s+v;},0);
+  alertContent3.innerHTML='<b>'+cur3+'</b> → '+Object.keys(cnt3).sort(function(a,b){return cnt3[b]-cnt3[a];}).map(function(f){var p=Math.round(cnt3[f]/tot3*100); return'<span class="sb '+f+'" style="font-size:12px;padding:3px 7px;">'+f+':'+cnt3[f]+'('+p+'%)</span>';}).join(' ');
   } else if(cur3){alertContent3.innerHTML='<b>'+cur3+'</b> → <span style="color:var(--muted)">no match</span>';}
+  
   var map4={};
-  for(var i=0;i<=n-5;i++){var key4=c[i]+'→'+c[i+1]+'→'+c[i+2]+'→'+c[i+3],next4=c[i+4];if(!map4[key4])map4[key4]={};map4[key4][next4]=(map4[key4][next4]||0)+1;}
+  for(var i=0;i<=n-5;i++){var key4=c[i]+'→'+c[i+1]+'→'+c[i+2]+'→'+c[i+3], next4=c[i+4]; if(!map4[key4]) map4[key4]={}; map4[key4][next4]=(map4[key4][next4]||0)+1;}
   var cur4=n>=4?c[n-4]+'→'+c[n-3]+'→'+c[n-2]+'→'+c[n-1]:'';
-  if(cur4&&map4[cur4]){var cnt4=map4[cur4],tot4=Object.values(cnt4).reduce(function(s,v){return s+v;},0);
-  alertContent4.innerHTML='<b>'+cur4+'</b> → '+Object.keys(cnt4).sort(function(a,b){return cnt4[b]-cnt4[a];}).map(function(f){var p=Math.round(cnt4[f]/tot4*100);return'<span class="sb '+f+'" style="font-size:12px;padding:3px 7px;">'+f+':'+cnt4[f]+'('+p+'%)</span>';}).join(' ');
+  if(cur4&&map4[cur4]){var cnt4=map4[cur4], tot4=Object.values(cnt4).reduce(function(s,v){return s+v;},0);
+  alertContent4.innerHTML='<b>'+cur4+'</b> → '+Object.keys(cnt4).sort(function(a,b){return cnt4[b]-cnt4[a];}).map(function(f){var p=Math.round(cnt4[f]/tot4*100); return'<span class="sb '+f+'" style="font-size:12px;padding:3px 7px;">'+f+':'+cnt4[f]+'('+p+'%)</span>';}).join(' ');
   } else if(cur4){alertContent4.innerHTML='<b>'+cur4+'</b> → <span style="color:var(--muted)">no match</span>';}
+  
   var el=document.getElementById('seq-table');
-  var keys=Object.keys(map).sort(function(a,b){var ta=Object.values(map[a]).reduce(function(s,v){return s+v;},0);var tb=Object.values(map[b]).reduce(function(s,v){return s+v;},0);return tb-ta;});
+  var keys=Object.keys(map).sort(function(a,b){var ta=Object.values(map[a]).reduce(function(s,v){return s+v;},0); var tb=Object.values(map[b]).reduce(function(s,v){return s+v;},0); return tb-ta;});
   el.innerHTML=keys.map(function(k){
-    var counts2=map[k],total2=Object.values(counts2).reduce(function(s,v){return s+v;},0);
+    var counts2=map[k], total2=Object.values(counts2).reduce(function(s,v){return s+v;},0);
     var followers2=Object.keys(counts2).sort(function(a,b){return counts2[b]-counts2[a];});
-    var bars=followers2.map(function(f){var p=Math.round(counts2[f]/total2*100);return'<span class="sb '+f+'">'+f+':'+counts2[f]+'('+p+'%)</span>';}).join('');
+    var bars=followers2.map(function(f){var p=Math.round(counts2[f]/total2*100); return'<span class="sb '+f+'">'+f+':'+counts2[f]+'('+p+'%)</span>';}).join('');
     var isCur=k===cur;
-    return'<div class="seq-row'+(isCur?' hot':'')+'"><span class="seq-pat">'+(isCur?'▶ ':'')+k+'</span><div class="seq-bars">'+bars+'</div></div>';
+    return '<div class="seq-row'+(isCur?' hot':'')+'"><span class="seq-pat">'+(isCur?'▶ ':'')+k+'</span><div class="seq-bars">'+bars+'</div></div>';
   }).join('');
 }
 
 function searchCurrent(){
-  var filled=getFilledRounds();if(filled.length<3){toast('Need at least 3 rounds');return;}
-  var c=filled.map(function(r){return r.code;}),n=c.length;
-  document.getElementById('sp1').value=c[n-3];document.getElementById('sp2').value=c[n-2];document.getElementById('sp3').value=c[n-1];
+  var filled=getFilledRounds(); if(filled.length<3){toast('Need at least 3 rounds'); return;}
+  var c=filled.map(function(r){return r.code;}), n=c.length;
+  document.getElementById('sp1').value=c[n-3];
+  document.getElementById('sp2').value=c[n-2];
+  document.getElementById('sp3').value=c[n-1];
   searchPattern();
 }
+
 function searchPattern(){
-  var p1=document.getElementById('sp1').value,p2=document.getElementById('sp2').value,p3=document.getElementById('sp3').value;
+  var p1=document.getElementById('sp1').value, p2=document.getElementById('sp2').value, p3=document.getElementById('sp3').value;
   var el=document.getElementById('hsearch-results');
-  if(!p1||!p2||!p3){el.innerHTML='<div style="color:var(--muted);font-size:11px;">Select all 3 items</div>';return;}
-  var filled=getFilledRounds(),matches=[];
+  if(!p1||!p2||!p3){el.innerHTML='<div style="color:var(--muted);font-size:11px;">Select all 3 items</div>'; return;}
+  var filled=getFilledRounds(), matches=[];
   for(var i=0;i<filled.length-3;i++){
-    if(filled[i].code===p1&&filled[i+1].code===p2&&filled[i+2].code===p3){
+    if(filled[i].code===p1 && filled[i+1].code===p2 && filled[i+2].code===p3){
       var next=filled[i+3];
-      matches.push({r1:filled[i].round_number,date1:filled[i].play_date,r3:filled[i+2].round_number,nextCode:next.code,nextRound:next.round_number});
+      matches.push({r1:filled[i].round_number, date1:filled[i].play_date, r3:filled[i+2].round_number, nextCode:next.code, nextRound:next.round_number});
     }
   }
-  if(!matches.length){el.innerHTML='<div style="color:var(--muted);font-size:11px;">No matches found for '+p1+'→'+p2+'→'+p3+'</div>';return;}
-  var counts={};matches.forEach(function(m){counts[m.nextCode]=(counts[m.nextCode]||0)+1;});
+  if(!matches.length){el.innerHTML='<div style="color:var(--muted);font-size:11px;">No matches found for '+p1+'→'+p2+'→'+p3+'</div>'; return;}
+  var counts={}; matches.forEach(function(m){counts[m.nextCode]=(counts[m.nextCode]||0)+1;});
   var total=matches.length;
-  var summary=Object.keys(counts).sort(function(a,b){return counts[b]-counts[a];}).map(function(k){return'<span class="sb '+k+'">'+k+':'+counts[k]+'('+Math.round(counts[k]/total*100)+'%)</span>';}).join(' ');
-  el.innerHTML='<div class="hsr-summary">Found <b>'+total+'</b> matches: '+summary+'</div>'+matches.slice().reverse().map(function(m){var cc=['G','W','S','C'].indexOf(m.nextCode)>=0?m.nextCode:'';return'<div class="hsr"><span class="hsr-round">#'+m.r1+'-'+m.r3+'</span><span class="hsr-date">'+m.date1.substring(5)+'</span><span class="hsp-arrow" style="color:var(--muted)">→</span><span class="hsr-next '+cc+'">'+m.nextCode+'</span><span style="font-size:10px;color:var(--muted);margin-left:auto;">#'+m.nextRound+'</span></div>';}).join('');
+  var summary=Object.keys(counts).sort(function(a,b){return counts[b]-counts[a];}).map(function(k){return '<span class="sb '+k+'">'+k+':'+counts[k]+'('+Math.round(counts[k]/total*100)+'%)</span>';}).join(' ');
+  el.innerHTML='<div class="hsr-summary">Found <b>'+total+'</b> matches: '+summary+'</div>'+matches.slice().reverse().map(function(m){var cc=['G','W','S','C'].indexOf(m.nextCode)>=0?m.nextCode:''; return'<div class="hsr"><span class="hsr-round">#'+m.r1+'-'+m.r3+'</span><span class="hsr-date">'+m.date1.substring(5)+'</span><span class="hsp-arrow" style="color:var(--muted)">→</span><span class="hsr-next '+cc+'">'+m.nextCode+'</span><span style="font-size:10px;color:var(--muted);margin-left:auto;">#'+m.nextRound+'</span></div>';}).join('');
 }
 
 function ui(){
@@ -566,32 +686,31 @@ function ui(){
   document.getElementById('pval').className='pval '+p.cl;
   document.getElementById('pban').className='pban'+(p.cl?' a'+p.cl:'');
   var now=new Date();
-  var filled=getFilledRounds(),fc=filled.map(function(r){return r.code;}),fn=fc.length;
+  var filled=getFilledRounds(), fc=filled.map(function(r){return r.code;}), fn=fc.length;
   var patStr=fn>=3?fc[fn-3]+'→'+fc[fn-2]+'→'+fc[fn-1]:'—';
   document.getElementById('pinfo').textContent='Pattern: '+patStr+'\n'+p.info+'\n'+now.toTimeString().substring(0,5);
-  ['T','K','O','L','C','S','G','W'].forEach(function(c){var b=document.querySelector('.fb.'+c);if(b)b.classList.toggle('predicted',p.t===c);});
-  function sc(cid,bid,code,w,d){var v=since(code);document.getElementById(cid).textContent=v===null?'N/A':v;document.getElementById(bid).className='cbox'+(v!==null&&v>=d?' danger':v!==null&&v>=w?' warn':'');}
-  sc('cs','bs','S',22,35);sc('cg','bg','G',37,60);sc('cw','bw','W',60,100);
-  updateWinRatio();updateSeqTable();updateFruitCounts();
+  ['T','K','O','L','C','S','G','W'].forEach(function(c){var b=document.querySelector('.fb.'+c); if(b) b.classList.toggle('predicted',p.t===c);});
+  function sc(cid,bid,code,w,d){var v=since(code); document.getElementById(cid).textContent=v===null?'N/A':v; document.getElementById(bid).className='cbox'+(v!==null&&v>=d?' danger':v!==null&&v>=w?' warn':'');}
+  sc('cs','bs','S',22,35); sc('cg','bg','G',37,60); sc('cw','bw','W',60,100);
+  updateWinRatio(); updateSeqTable(); updateFruitCounts();
   var dateRounds=rounds.filter(function(r){return r.play_date===curDate;}).sort(function(a,b){return b.round_number-a.round_number;});
   var hl=document.getElementById('hl');
-  if(!dateRounds.length){hl.innerHTML='<div class="nodata">No rounds for today</div>';return;}
+  if(!dateRounds.length){hl.innerHTML='<div class="nodata">No rounds for today</div>'; return;}
   var filledForIdx=getFilledRounds();
   hl.innerHTML=dateRounds.map(function(r){
     var isEmpty=!r.code||r.code==='';
-    var sp=!isEmpty&&['G','W','S','C'].indexOf(r.code)>=0?'i'+r.code.toLowerCase():'';
-    var cc=!isEmpty&&['G','W','S','C'].indexOf(r.code)>=0?r.code:'';
+    var sp=!isEmpty && ['G','W','S','C'].indexOf(r.code)>=0 ? 'i'+r.code.toLowerCase() : '';
+    var cc=!isEmpty && ['G','W','S','C'].indexOf(r.code)>=0 ? r.code : '';
     var gIdx=filledForIdx.findIndex(function(x){return x.id===r.id;});
-    var pr=!isEmpty&&gIdx>=0?predAt(gIdx):'',ph='';
-    if(pr)ph=pr===r.code?'<span class="hp hpok">✓'+pr+'</span>':'<span class="hp hpfail">'+pr+'→'+r.code+'</span>';
-    var cd=isEmpty?'<span style="color:var(--muted)">—</span>':'<span class="hc '+cc+'">'+r.code+'</span>';
-    return'<div class="hi '+sp+'" style="'+(isEmpty?'opacity:.4':'')+'"><span class="hr">#'+r.round_number+'</span><span class="ht">'+(r.play_time?r.play_time.substring(0,5):'')+'</span>'+cd+ph+'<button class="hedit" onclick="openEdit(\''+r.id+'\')" style="margin-left:auto;">EDIT</button>'+(!isEmpty?'<button class="hclr" onclick="clrRound(\''+r.id+'\')">CLR</button>':'')+'</div>';
+    var pr=!isEmpty && gIdx>=0 ? predAt(gIdx) : '', ph='';
+    if(pr) ph=pr===r.code ? '<span class="hp hpok">✓'+pr+'</span>' : '<span class="hp hpfail">'+pr+'→'+r.code+'</span>';
+    var cd=isEmpty ? '<span style="color:var(--muted)">—</span>' : '<span class="hc '+cc+'">'+r.code+'</span>';
+    return '<div class="hi '+sp+'" style="'+(isEmpty?'opacity:.4':'')+'"><span class="hr">#'+r.round_number+'</span><span class="ht">'+(r.play_time?r.play_time.substring(0,5):'')+'</span>'+cd+ph+'<button class="hedit" onclick="openEdit(\''+r.id+'\')" style="margin-left:auto;">EDIT</button>'+(!isEmpty?'<button class="hclr" onclick="clrRound(\''+r.id+'\')">CLR</button>':'')+'</div>';
   }).join('');
 }
 
-function toast(m){var t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(function(){t.classList.remove('show');},2000);}
+function toast(m){var t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); setTimeout(function(){t.classList.remove('show');},2000);}
 
-// RNG functions (simplified placeholder for completeness)
 var FRUIT_MAP={T:0,K:1,O:2,L:3,C:4,S:5,G:6,W:7};
 var NUM_MAP={0:'T',1:'K',2:'O',3:'L',4:'C',5:'S',6:'G',7:'W'};
 async function runRNG(){toast('RNG analysis available after more data');}
@@ -599,11 +718,11 @@ async function runRNG(){toast('RNG analysis available after more data');}
 (function(){
   var s=localStorage.getItem('rt');
   if(s){try{
-    var o=JSON.parse(s);tok=o.tok;uid=o.uid;if(o.refresh)refreshTok=o.refresh;
+    var o=JSON.parse(s); tok=o.tok; uid=o.uid; if(o.refresh) refreshTok=o.refresh;
     var savedRnum=localStorage.getItem('rt_rnum');
     var savedDir=localStorage.getItem('rt_dir');
-    if(savedDir){enterDir=parseInt(savedDir);setDir(enterDir);}
-    if(savedRnum){document.getElementById('rnum').value=savedRnum;userSetRound=true;}
+    if(savedDir){enterDir=parseInt(savedDir); setDir(enterDir);}
+    if(savedRnum){document.getElementById('rnum').value=savedRnum; userSetRound=true;}
     initApp();
   }catch(e){localStorage.removeItem('rt');}}
 })();
