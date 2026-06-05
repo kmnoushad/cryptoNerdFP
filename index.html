@@ -307,10 +307,11 @@ var K='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJm
 var tok=null,uid=null,refreshTok=null,rounds=[],curDate='',enterDir=1,editingId=null,editingCode=null,userSetRound=false;
 
 function today(){
+  // UAE is UTC+4 - use toLocaleDateString with explicit timezone
   var d=new Date();
-  // UAE is UTC+4
-  var uae=new Date(d.getTime()+4*60*60*1000);
-  return uae.toISOString().split('T')[0];
+  var opts={timeZone:'Asia/Dubai',year:'numeric',month:'2-digit',day:'2-digit'};
+  var parts=d.toLocaleDateString('en-CA',opts); // en-CA gives YYYY-MM-DD format
+  return parts;
 }
 function nowTime(){
   var d=new Date();
