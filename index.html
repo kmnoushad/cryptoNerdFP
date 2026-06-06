@@ -161,6 +161,8 @@ body{background:var(--bg);color:var(--text);font-family:Arial,sans-serif;font-si
     <div id="seq3"></div>
     <div style="font-size:10px;color:var(--muted);margin:4px 0 2px;">4-item:</div>
     <div id="seq4"></div>
+    <div style="font-size:10px;color:var(--muted);margin:4px 0 2px;">5-item:</div>
+    <div id="seq5"></div>
   </div>
 
   <div class="pban" id="pban">
@@ -431,6 +433,8 @@ function predict(){
   for(var i=0;i<=n-4;i++)if(c[i]===p0&&c[i+1]===p1&&c[i+2]===p2){var x=c[i+3];if(x==='G')pg++;else if(x==='W')pw++;else if(x==='S')ps++;else if(x==='C')pc++;}
   var total=pg+pw+ps+pc;
   if(total===0)return{t:'—',cl:'',info:'no pattern yet'};
+  if(Math.max(pg,pw,ps,pc)<3)return{t:'—',cl:'',info:'need 3+ matches
+G:'+pg+' W:'+pw+' S:'+ps+' C:'+pc};
   var mx=Math.max(pg,pw,ps,pc),t,cl;
   if(pw===mx){t='W';cl='w';}else if(pg===mx){t='G';cl='g';}else if(ps===mx){t='S';cl='s';}else{t='C';cl='c';}
   function pct(v){return Math.round(v/total*100)+'%';}
@@ -473,7 +477,7 @@ function ui(){
       if(map[cur]){var m=map[cur],tot=Object.values(m).reduce(function(a,b){return a+b;},0);el.innerHTML='<b>'+cur+'</b> → '+Object.keys(m).sort(function(a,b){return m[b]-m[a];}).map(function(k){return'<span class="sb '+k+'">'+k+':'+m[k]+'('+Math.round(m[k]/tot*100)+'%)</span>';}).join(' ');}
       else el.innerHTML='<b>'+cur+'</b> → <span style="color:var(--muted)">no match</span>';
     }
-    seqMatch(2,'seq2');seqMatch(3,'seq3');seqMatch(4,'seq4');
+    seqMatch(2,'seq2');seqMatch(3,'seq3');seqMatch(4,'seq4');seqMatch(5,'seq5');
   } else sa.style.display='none';
 
   // History - show selected date only
@@ -596,6 +600,19 @@ async function runRNG(){
       +'<span style="font-size:13px;font-weight:700;color:'+(parseFloat(r.acc)>20?'#00e676':'#ef5350')+'">'+r.acc+'%</span></div>'
       +'<div style="display:flex;gap:4px;">'+r.next.map(function(f){return'<span style="font-size:13px;font-weight:700;color:'+(FCOL[f]||'#e0e0e0')+';background:#0d0f14;padding:2px 6px;border-radius:4px;">'+f+'</span>';}).join('')+'</div></div>';
   }).join('');
+
+  // Frequency analysis - find most common fruit and patterns today
+  var freqMap={T:0,K:0,O:0,L:0,C:0,S:0,G:0,W:0};
+  filled.forEach(function(r){if(freqMap[r.code]!==undefined)freqMap[r.code]++;});
+  var freqTotal=filled.length;
+  var freqSorted=Object.keys(freqMap).sort(function(a,b){return freqMap[b]-freqMap[a];});
+  rngLog('📈 Frequency today: '+freqSorted.map(function(f){return f+':'+(freqMap[f]/freqTotal*100).toFixed(0)+'%';}).join(' '));
+
+  // Hot/cold streaks
+  var last20=filled.slice(-20).map(function(r){return r.code;});
+  var hotMap={};last20.forEach(function(f){hotMap[f]=(hotMap[f]||0)+1;});
+  var hotSorted=Object.keys(hotMap).sort(function(a,b){return hotMap[b]-hotMap[a];});
+  rngLog('🔥 Last 20: '+hotSorted.slice(0,3).map(function(f){return f+':'+hotMap[f];}).join(' '));
 
   rngProg(100);btn.disabled=false;btn.textContent='▶ RUN AGAIN';
   rngLog('✅ Done!');
