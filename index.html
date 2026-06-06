@@ -564,7 +564,7 @@ async function runRNG(){
     var testStart=Math.floor(n*0.8),ok=0,tot=0;
     for(var j=testStart+ord;j<n;j++){var pp=markovPredict(chain,seq.slice(j-ord,j),ord);if(pp&&parseInt(pp.fruit)===seq[j])ok++;tot++;}
     var macc=tot>0?(ok/tot*100).toFixed(1):0;
-    var nf=mp&&mp.matches>0?NMAP[parseInt(mp.fruit)]:'—';
+    var nf=mp&&mp.total>0?NMAP[parseInt(mp.fruit)]:'—';
     markovRes.push({order:ord,acc:macc,next:nf,conf:mp?mp.conf:0,matches:mp?mp.total:0});
     rngLog('  Order '+ord+': '+macc+'% → '+nf);
   }
