@@ -201,7 +201,10 @@ body{background:var(--bg);color:var(--text);font-family:Arial,sans-serif;font-si
     <div class="ss-row"><span id="ss"></span></div>
   </div>
 
-  <button onclick="var s=document.getElementById('rng-section');s.style.display=s.style.display==='block'?'none':'block';" style="width:100%;background:#111318;border:2px solid #00e5ff;color:#00e5ff;border-radius:8px;font-size:14px;font-weight:700;padding:12px;cursor:pointer;margin-bottom:8px;touch-action:manipulation;">🔬 RNG CRACKER</button>
+  <div style="display:flex;gap:6px;margin-bottom:8px;">
+    <button onclick="var s=document.getElementById('rng-section');s.style.display=s.style.display==='block'?'none':'block';" style="flex:1;background:#111318;border:2px solid #00e5ff;color:#00e5ff;border-radius:8px;font-size:12px;font-weight:700;padding:10px;cursor:pointer;touch-action:manipulation;">🔬 RNG (ALL DAY)</button>
+    <button onclick="var s=document.getElementById('rng-section2');s.style.display=s.style.display==='block'?'none':'block';" style="flex:1;background:#111318;border:2px solid #ffb74d;color:#ffb74d;border-radius:8px;font-size:12px;font-weight:700;padding:10px;cursor:pointer;touch-action:manipulation;">⚡ RNG (LAST 25)</button>
+  </div>
   <div class="rng-section" id="rng-section">
     <button class="rng-btn" id="rng-run-btn" onclick="runRNG()">▶ RUN ANALYSIS</button>
     <div style="background:#1e2330;border-radius:4px;height:5px;margin-bottom:8px;overflow:hidden;display:none;" id="rng-prog-wrap"><div style="background:var(--accent);height:100%;transition:width .3s;" id="rng-prog-bar" style="width:0%"></div></div>
@@ -227,6 +230,30 @@ body{background:var(--bg);color:var(--text);font-family:Arial,sans-serif;font-si
     </div>
     <div id="rng-log-box" style="display:none;" class="rng-result">
       <div id="rng-log" class="rng-log"></div>
+    </div>
+  </div>
+
+  <div class="rng-section" id="rng-section2">
+    <button class="rng-btn" id="rng-run-btn2" onclick="runRNG2()">▶ RUN LAST 25</button>
+    <div style="background:#1e2330;border-radius:4px;height:5px;margin-bottom:8px;overflow:hidden;display:none;" id="rng-prog-wrap2"><div style="background:#ffb74d;height:100%;transition:width .3s;" id="rng-prog-bar2" style="width:0%"></div></div>
+    <div id="rng-best2" style="display:none;" class="rng-result">
+      <div class="rng-result-title">BEST PREDICTION (LAST 25)</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <div id="rng-best-letter2" style="font-size:38px;font-weight:900;"></div>
+        <div style="text-align:right;">
+          <div style="font-size:10px;color:var(--muted);">Method</div>
+          <div id="rng-best-method2" style="font-size:12px;color:#ffb74d;"></div>
+          <div style="font-size:10px;color:var(--muted);margin-top:3px;">Confidence</div>
+          <div id="rng-best-acc2" style="font-size:16px;font-weight:700;"></div>
+        </div>
+      </div>
+    </div>
+    <div id="rng-markov2" style="display:none;" class="rng-result">
+      <div class="rng-result-title">MARKOV (LAST 25)</div>
+      <div id="rng-markov-content2"></div>
+    </div>
+    <div id="rng-log-box2" style="display:none;" class="rng-result">
+      <div id="rng-log2" class="rng-log"></div>
     </div>
   </div>
 
@@ -627,6 +654,62 @@ async function runRNG(){
 
   rngProg(100);btn.disabled=false;btn.textContent='▶ RUN AGAIN';
   rngLog('✅ Done!');
+}
+
+// ── RNG2 (LAST 25) ──
+function rngLog2(m){var el=document.getElementById('rng-log2');if(el){el.innerHTML=(el.innerHTML?el.innerHTML+'<br>':'')+m;document.getElementById('rng-log-box2').style.display='block';}}
+function rngProg2(p){document.getElementById('rng-prog-wrap2').style.display='block';document.getElementById('rng-prog-bar2').style.width=p+'%';}
+
+async function runRNG2(){
+  var btn=document.getElementById('rng-run-btn2');
+  btn.disabled=true;btn.textContent='Running...';
+  document.getElementById('rng-log2').innerHTML='';
+  document.getElementById('rng-log-box2').style.display='none';
+  document.getElementById('rng-best2').style.display='none';
+  document.getElementById('rng-markov2').style.display='none';
+  rngProg2(10);
+
+  var filled=getFilledRounds().slice(-25);
+  rngLog2('⚡ Using last '+filled.length+' rounds');
+  if(filled.length<10){rngLog2('❌ Need 10+ rounds');btn.disabled=false;btn.textContent='▶ RUN LAST 25';return;}
+
+  var seq=filled.map(function(r){return FMAP[r.code];});
+  var n=seq.length;
+  var markovRes=[];
+  rngProg2(30);
+  for(var ord=2;ord<=4;ord++){
+    var chain=buildMarkov(seq,ord);
+    var mp=markovPredict(chain,seq.slice(-ord),ord);
+    var nf=mp&&mp.total>0?NMAP[parseInt(mp.fruit)]:'—';
+    markovRes.push({order:ord,acc:0,next:nf,conf:mp?mp.conf:0,matches:mp?mp.total:0});
+    rngLog2('Order '+ord+': '+nf+(mp?' ('+mp.conf+'% from '+mp.total+' matches)':''));
+    await sleep(10);
+  }
+  rngProg2(80);
+
+  // Find best with matches
+  var bm=markovRes.filter(function(r){return r.matches>0;}).sort(function(a,b){return parseFloat(b.conf)-parseFloat(a.conf);})[0];
+  
+  if(bm){
+    document.getElementById('rng-best2').style.display='block';
+    document.getElementById('rng-best-letter2').textContent=bm.next;
+    document.getElementById('rng-best-letter2').style.color=FCOL[bm.next]||'#ffb74d';
+    document.getElementById('rng-best-method2').textContent='Markov Order '+bm.order;
+    document.getElementById('rng-best-acc2').textContent=bm.conf+'%';
+    document.getElementById('rng-best-acc2').style.color=parseFloat(bm.conf)>50?'var(--green)':'var(--orange)';
+  }
+
+  document.getElementById('rng-markov2').style.display='block';
+  document.getElementById('rng-markov-content2').innerHTML=markovRes.map(function(r){
+    return'<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);">'
+      +'<div><span style="font-size:11px;color:#ffb74d;">Order '+r.order+'</span><span style="font-size:10px;color:var(--muted);margin-left:8px;">'+r.matches+' matches</span></div>'
+      +'<div style="display:flex;align-items:center;gap:8px;">'
+      +'<span style="font-size:18px;font-weight:700;color:'+(FCOL[r.next]||'#e0e0e0')+'">'+r.next+'</span>'
+      +'<span style="font-size:11px;color:'+(r.conf>=50?'#00e676':'#ffb74d')+'">'+r.conf+'%</span>'
+      +'</div></div>';
+  }).join('');
+
+  rngProg2(100);btn.disabled=false;btn.textContent='▶ RUN LAST 25';
 }
 
 // ── RESTORE SESSION ──
