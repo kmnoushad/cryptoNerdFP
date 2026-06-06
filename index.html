@@ -613,6 +613,18 @@ async function runRNG(){
   var hotSorted=Object.keys(hotMap).sort(function(a,b){return hotMap[b]-hotMap[a];});
   rngLog('🔥 Last 20: '+hotSorted.slice(0,3).map(function(f){return f+':'+hotMap[f];}).join(' '));
 
+  // Quick cracker - last 25 rounds only
+  var q25=filled.slice(-25);
+  if(q25.length>=10){
+    var q25seq=q25.map(function(r){return FMAP[r.code];});
+    var q25chain2=buildMarkov(q25seq,2),q25chain3=buildMarkov(q25seq,3);
+    var q25p2=markovPredict(q25chain2,q25seq.slice(-2),2);
+    var q25p3=markovPredict(q25chain3,q25seq.slice(-3),3);
+    var q25next2=q25p2&&q25p2.total>0?NMAP[parseInt(q25p2.fruit)]:'—';
+    var q25next3=q25p3&&q25p3.total>0?NMAP[parseInt(q25p3.fruit)]:'—';
+    rngLog('⚡ LAST 25 — 2-seq: '+q25next2+(q25p2?' ('+q25p2.conf+'%)':'') +' | 3-seq: '+q25next3+(q25p3?' ('+q25p3.conf+'%)':''));
+  }
+
   rngProg(100);btn.disabled=false;btn.textContent='▶ RUN AGAIN';
   rngLog('✅ Done!');
 }
