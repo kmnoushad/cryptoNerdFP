@@ -433,8 +433,7 @@ function predict(){
   for(var i=0;i<=n-4;i++)if(c[i]===p0&&c[i+1]===p1&&c[i+2]===p2){var x=c[i+3];if(x==='G')pg++;else if(x==='W')pw++;else if(x==='S')ps++;else if(x==='C')pc++;}
   var total=pg+pw+ps+pc;
   if(total===0)return{t:'—',cl:'',info:'no pattern yet'};
-  if(Math.max(pg,pw,ps,pc)<3)return{t:'—',cl:'',info:'need 3+ matches
-G:'+pg+' W:'+pw+' S:'+ps+' C:'+pc};
+  if(Math.max(pg,pw,ps,pc)<3)return{t:'—',cl:'',info:'need 3+ matches\nG:'+pg+' W:'+pw+' S:'+ps+' C:'+pc};
   var mx=Math.max(pg,pw,ps,pc),t,cl;
   if(pw===mx){t='W';cl='w';}else if(pg===mx){t='G';cl='g';}else if(ps===mx){t='S';cl='s';}else{t='C';cl='c';}
   function pct(v){return Math.round(v/total*100)+'%';}
