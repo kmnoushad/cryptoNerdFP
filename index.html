@@ -551,6 +551,35 @@ function rngAcc(pred,act){var ok=0,n=Math.min(pred.length,act.length);for(var i=
 function findSeed(seq,algo,p,range){var best={s:1,acc:0},ts=seq.slice(-50);for(var s=1;s<=range;s++){var pred=algo==='lcg'?lcgRun(s,p.a,p.c,p.m,ts.length):xorRun(s,ts.length);var acc=rngAcc(pred,ts);if(acc>best.acc){best.acc=acc;best.s=s;}}return best;}
 function buildMarkov(seq,order){var chain={};for(var i=order;i<seq.length;i++){var key=seq.slice(i-order,i).join(','),nx=seq[i];if(!chain[key])chain[key]={};chain[key][nx]=(chain[key][nx]||0)+1;}return chain;}
 function markovPredict(chain,last,order){var key=last.slice(-order).join(',');if(!chain[key])return null;var c=chain[key],tot=Object.values(c).reduce(function(a,b){return a+b;},0);var best=null,bc=0;Object.keys(c).forEach(function(f){if(c[f]>bc){bc=c[f];best=f;}});return{fruit:best,conf:(bc/tot*100).toFixed(1),total:tot};}
+// LFSR - Linear Feedback Shift Register
+function lfsrRun(seed, taps, bits, count) {
+  var res = [], x = seed & ((1<<bits)-1);
+  for(var i=0;i<count;i++){
+    var bit=0;
+    for(var t=0;t<taps.length;t++) bit^=(x>>(taps[t]-1))&1;
+    x=((x>>1)|(bit<<(bits-1)))&((1<<bits)-1);
+    res.push(wIdx(x, (1<<bits)-1));
+  }
+  return res;
+}
+
+// Common LFSR configurations
+var LFSRS=[
+  {name:'LFSR-8',bits:8,taps:[8,6,5,4]},
+  {name:'LFSR-16',bits:16,taps:[16,15,13,4]},
+  {name:'LFSR-12',bits:12,taps:[12,11,10,4]},
+];
+
+function findLFSRSeed(seq, lfsr, range){
+  var best={s:1,acc:0}, ts=seq.slice(-50);
+  for(var s=1;s<=range;s++){
+    var pred=lfsrRun(s,lfsr.taps,lfsr.bits,ts.length);
+    var acc=rngAcc(pred,ts);
+    if(acc>best.acc){best.acc=acc;best.s=s;}
+  }
+  return best;
+}
+
 var LCGS=[{name:'Numerical Recipes',a:1664525,c:1013904223,m:4294967296},{name:'glibc',a:1103515245,c:12345,m:2147483648},{name:'Borland C++',a:22695477,c:1,m:4294967296},{name:'MINSTD',a:16807,c:0,m:2147483647},{name:'ZX81',a:75,c:74,m:65537}];
 function sleep(ms){return new Promise(function(r){setTimeout(r,ms);});}
 
@@ -581,6 +610,16 @@ async function runRNG(){
   var xf=findSeed(seq,'xor',null,5000);
   var xp=xorRun(xf.s,n+5);
   allResults.push({name:'XorShift32',acc:xf.acc.toFixed(1),next:xp.slice(n,n+5).map(function(x){return NMAP[x];})});
+
+  // Test LFSR
+  rngProg(80);
+  for(var li=0;li<LFSRS.length;li++){
+    var lf=LFSRS[li];rngLog('🧪 '+lf.name);await sleep(20);
+    var lff=findLFSRSeed(seq,'lfsr',lf,3000);
+    var lfpred=lfsrRun(lff.s,lf.taps,lf.bits,n+5);
+    allResults.push({name:lf.name,acc:lff.acc.toFixed(1),next:lfpred.slice(n,n+5).map(function(x){return NMAP[x];})});
+    rngLog('  → '+lff.acc.toFixed(1)+'%');
+  }
 
   rngProg(88);rngLog('🧪 Markov Chain');await sleep(20);
   var markovRes=[];
