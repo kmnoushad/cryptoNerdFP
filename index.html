@@ -544,7 +544,7 @@ var WEIGHTS=[20,20,20,20,10,6.7,4,2.5],TW=103.7;
 var rngLogs=[];
 function rngLog(m){rngLogs.unshift(m);if(rngLogs.length>15)rngLogs.pop();var el=document.getElementById('rng-log');if(el){el.innerHTML=rngLogs.join('<br>');document.getElementById('rng-log-box').style.display='block';}}
 function rngProg(p){document.getElementById('rng-prog-wrap').style.display='block';document.getElementById('rng-prog-bar').style.width=p+'%';}
-function wIdx(v,m){var cum=0,n=(v/m)*TW;for(var i=0;i<WEIGHTS.length;i++){cum+=WEIGHTS[i];if(n<=cum)return i;}return 7;}
+function wIdx(v,m){var cum=0,n=(v/m)*TW;for(var i=0;i<WEIGHTS.length;i++){cum+=WEIGHTS[i];if(n<=cum)return i+1;}return 8;}
 function lcgRun(s,a,c,m,n){var res=[],x=s;for(var i=0;i<n;i++){x=(a*x+c)%m;res.push(wIdx(x,m));}return res;}
 function xorRun(s,n){var res=[],x=s>>>0;for(var i=0;i<n;i++){x^=x<<13;x^=x>>17;x^=x<<5;x=x>>>0;res.push(wIdx(x,4294967295));}return res;}
 function rngAcc(pred,act){var ok=0,n=Math.min(pred.length,act.length);for(var i=0;i<n;i++)if(pred[i]===act[i])ok++;return n>0?ok/n*100:0;}
