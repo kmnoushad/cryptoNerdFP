@@ -294,8 +294,8 @@ body{background:var(--bg);color:var(--text);font-family:Arial,sans-serif;font-si
 <div class="toast" id="toast"></div>
 
 <script>
-var SB_URL='https://rfdczqbszgnujeyxxiul.supabase.co';
-var SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJmZGN6cWJzemdudWpleXh4aXVsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAzMTc4MTMsImV4cCI6MjA5NTg5MzgxM30.HLSue6rAKMWM4VFSTCxOEExvPylvetYrPTvWCwvIJaI';
+var SB_URL='https://hyfiqhjjhbarijbodupa.supabase.co';
+var SB_KEY='sb_publishable_mf1dNfI_2D_hojbW95wZBA_73YF50u3';
 var tok=null,uid=null,refreshTok=null;
 var rounds=[]; // ALL rounds loaded from Supabase
 var curDate='';
@@ -538,13 +538,13 @@ function searchPattern(){
 }
 
 // ── RNG ──
-var FMAP={T:1,K:2,O:3,L:4,C:5,S:6,G:7,W:8},NMAP={1:'T',2:'K',3:'O',4:'L',5:'C',6:'S',7:'G',8:'W'};
+var FMAP={T:0,K:1,O:2,L:3,C:4,S:5,G:6,W:7},NMAP={0:'T',1:'K',2:'O',3:'L',4:'C',5:'S',6:'G',7:'W'};
 var FCOL={T:'#e53935',K:'#43a047',O:'#fb8c00',L:'#fdd835',C:'#e91e63',S:'#ffb74d',G:'#ce93d8',W:'#00e676'};
 var WEIGHTS=[20,20,20,20,10,6.7,4,2.5],TW=103.7;
 var rngLogs=[];
 function rngLog(m){rngLogs.unshift(m);if(rngLogs.length>15)rngLogs.pop();var el=document.getElementById('rng-log');if(el){el.innerHTML=rngLogs.join('<br>');document.getElementById('rng-log-box').style.display='block';}}
 function rngProg(p){document.getElementById('rng-prog-wrap').style.display='block';document.getElementById('rng-prog-bar').style.width=p+'%';}
-function wIdx(v,m){var cum=0,n=(v/m)*TW;for(var i=0;i<WEIGHTS.length;i++){cum+=WEIGHTS[i];if(n<=cum)return i+1;}return 8;}
+function wIdx(v,m){var cum=0,n=(v/m)*TW;for(var i=0;i<WEIGHTS.length;i++){cum+=WEIGHTS[i];if(n<=cum)return i;}return 7;}
 function lcgRun(s,a,c,m,n){var res=[],x=s;for(var i=0;i<n;i++){x=(a*x+c)%m;res.push(wIdx(x,m));}return res;}
 function xorRun(s,n){var res=[],x=s>>>0;for(var i=0;i<n;i++){x^=x<<13;x^=x>>17;x^=x<<5;x=x>>>0;res.push(wIdx(x,4294967295));}return res;}
 function rngAcc(pred,act){var ok=0,n=Math.min(pred.length,act.length);for(var i=0;i<n;i++)if(pred[i]===act[i])ok++;return n>0?ok/n*100:0;}
@@ -570,10 +570,10 @@ var LFSRS=[
   {name:'LFSR-12',bits:12,taps:[12,11,10,4]},
 ];
 
-function findLFSRSeed(seq, lfsr, range){
+function findLFSRSeed(seq, lf, range){
   var best={s:1,acc:0}, ts=seq.slice(-50);
   for(var s=1;s<=range;s++){
-    var pred=lfsrRun(s,lfsr.taps,lfsr.bits,ts.length);
+    var pred=lfsrRun(s,lf.taps,lf.bits,ts.length);
     var acc=rngAcc(pred,ts);
     if(acc>best.acc){best.acc=acc;best.s=s;}
   }
@@ -615,7 +615,7 @@ async function runRNG(){
   rngProg(80);
   for(var li=0;li<LFSRS.length;li++){
     var lf=LFSRS[li];rngLog('🧪 '+lf.name);await sleep(20);
-    var lff=findLFSRSeed(seq,'lfsr',lf,3000);
+    var lff=findLFSRSeed(seq,lf,3000);
     var lfpred=lfsrRun(lff.s,lf.taps,lf.bits,n+5);
     allResults.push({name:lf.name,acc:lff.acc.toFixed(1),next:lfpred.slice(n,n+5).map(function(x){return NMAP[x];})});
     rngLog('  → '+lff.acc.toFixed(1)+'%');
