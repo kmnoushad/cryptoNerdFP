@@ -398,14 +398,13 @@ function enter(code){
   var rnum=parseInt(document.getElementById('rnum').value)||1;
   // Check if round already exists for this date
   var existing=rounds.find(function(r){return r.round_number===rnum;});
-  if(existing){
-    if(existing.code&&existing.code!==''){
-      // Update existing
-      fetch(SB_URL+'/rest/v1/rounds?id=eq.'+existing.id,{method:'PATCH',headers:{'Content-Type':'application/json','apikey':SB_KEY,'Authorization':'Bearer '+tok,'Prefer':'return=representation'},body:JSON.stringify({code:code,play_time:nowTime()})})
-      .then(function(r){return r.json();}).then(function(d){
-        if(Array.isArray(d)&&d[0]){var i=rounds.findIndex(function(r){return r.id===existing.id;});if(i>=0)rounds[i]=d[0];advance(rnum);ui();}
-      });return;
-    }
+  if(existing&&existing.code&&existing.code!==''){
+    // Ask for confirmation before overwrite
+    if(!confirm('Round #'+rnum+' already = '+existing.code+'\n\nOverwrite with '+code+'?'))return;
+    fetch(SB_URL+'/rest/v1/rounds?id=eq.'+existing.id,{method:'PATCH',headers:{'Content-Type':'application/json','apikey':SB_KEY,'Authorization':'Bearer '+tok,'Prefer':'return=representation'},body:JSON.stringify({code:code,play_time:nowTime()})})
+    .then(function(r){return r.json();}).then(function(d){
+      if(Array.isArray(d)&&d[0]){var i=rounds.findIndex(function(r){return r.id===existing.id;});if(i>=0)rounds[i]=d[0];advance(rnum);ui();toast('Overwritten');}
+    });return;
   }
   document.getElementById('ss').textContent='saving...';
   fetch(SB_URL+'/rest/v1/rounds',{method:'POST',headers:{'Content-Type':'application/json','apikey':SB_KEY,'Authorization':'Bearer '+tok,'Prefer':'return=representation'},body:JSON.stringify({user_id:uid,play_date:curDate,play_time:nowTime(),round_number:rnum,code:code})})
