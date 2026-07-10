@@ -455,18 +455,25 @@ function since(code){var c=getFilledRounds().map(function(r){return r.code;});fo
 function predict(){
   var f=getFilledRounds(),c=f.map(function(r){return r.code;}),n=c.length;
   if(n<4)return{t:'—',cl:'',info:'need more data'};
-  var p0=c[n-3],p1=c[n-2],p2=c[n-1],pg=0,pw=0,ps=0,pc=0;
-  for(var i=0;i<=n-4;i++)if(c[i]===p0&&c[i+1]===p1&&c[i+2]===p2){var x=c[i+3];if(x==='G')pg++;else if(x==='W')pw++;else if(x==='S')ps++;else if(x==='C')pc++;}
-  var total=pg+pw+ps+pc;
+  var p0=c[n-3],p1=c[n-2],p2=c[n-1];
+  // Track ALL 8 fruits
+  var counts={T:0,K:0,O:0,L:0,C:0,S:0,G:0,W:0};
+  for(var i=0;i<=n-4;i++)if(c[i]===p0&&c[i+1]===p1&&c[i+2]===p2){var x=c[i+3];if(counts[x]!==undefined)counts[x]++;}
+  var total=0;for(var k in counts)total+=counts[k];
   if(total===0)return{t:'—',cl:'',info:'no pattern yet'};
-  if(Math.max(pg,pw,ps,pc)<3)return{t:'—',cl:'',info:'need 3+ matches\nG:'+pg+' W:'+pw+' S:'+ps+' C:'+pc};
-  var mx=Math.max(pg,pw,ps,pc),t,cl;
-  if(pw===mx){t='W';cl='w';}else if(pg===mx){t='G';cl='g';}else if(ps===mx){t='S';cl='s';}else{t='C';cl='c';}
+  // Find max
+  var maxCount=0,maxFruit='';
+  for(var k in counts)if(counts[k]>maxCount){maxCount=counts[k];maxFruit=k;}
+  if(maxCount<3)return{t:'—',cl:'',info:'need 3+ matches (max '+maxCount+')'};
+  var cl=['G','W','S','C'].indexOf(maxFruit)>=0?maxFruit.toLowerCase():'';
   function pct(v){return Math.round(v/total*100)+'%';}
-  var info='Pattern:'+p0+'→'+p1+'→'+p2+'\nG:'+pg+'('+pct(pg)+') W:'+pw+'('+pct(pw)+')\nS:'+ps+'('+pct(ps)+') C:'+pc+'('+pct(pc)+')';
+  // Show top 3 predictions
+  var sorted=Object.keys(counts).filter(function(k){return counts[k]>0;}).sort(function(a,b){return counts[b]-counts[a];});
+  var topInfo=sorted.slice(0,4).map(function(k){return k+':'+counts[k]+'('+pct(counts[k])+')';}).join(' ');
+  var info='Pattern:'+p0+'→'+p1+'→'+p2+'\n'+topInfo+'\nMatches:'+total;
   var sw=since('W');if(sw!==null&&sw>=100)info+='\n🚨W DANGER('+sw+')';
   var sg=since('G');if(sg!==null&&sg>=60)info+='\n⚠️G overdue('+sg+')';
-  return{t:t,cl:cl,info:info};
+  return{t:maxFruit,cl:cl,info:info};
 }
 
 // ── UI ──
@@ -582,6 +589,35 @@ function findLFSRSeed(seq, lf, range){
 var LCGS=[{name:'Numerical Recipes',a:1664525,c:1013904223,m:4294967296},{name:'glibc',a:1103515245,c:12345,m:2147483648},{name:'Borland C++',a:22695477,c:1,m:4294967296},{name:'MINSTD',a:16807,c:0,m:2147483647},{name:'ZX81',a:75,c:74,m:65537}];
 function sleep(ms){return new Promise(function(r){setTimeout(r,ms);});}
 
+// Entropy test - measures randomness (0=predictable, 1=fully random)
+function calcEntropy(seq){
+  var counts={};
+  seq.forEach(function(x){counts[x]=(counts[x]||0)+1;});
+  var n=seq.length,entropy=0;
+  for(var k in counts){var p=counts[k]/n;entropy-=p*Math.log2(p);}
+  return entropy/Math.log2(8); // normalize to 0-1 (8 fruits)
+}
+
+// Ensemble voting - combines all signals
+function ensembleVote(markovRes, allResults, filled){
+  var votes={T:0,K:0,O:0,L:0,C:0,S:0,G:0,W:0};
+  // Markov votes (weighted by accuracy and matches)
+  markovRes.forEach(function(m){
+    if(m.matches>0&&m.next!=='—'){
+      var weight=parseFloat(m.acc)/100*Math.min(m.matches,10);
+      votes[m.next]=(votes[m.next]||0)+weight*2; // markov weighted higher
+    }
+  });
+  // Frequency votes (recent bias)
+  var last20=filled.slice(-20).map(function(r){return r.code;});
+  var freq={};last20.forEach(function(x){freq[x]=(freq[x]||0)+1;});
+  for(var k in freq)votes[k]=(votes[k]||0)+freq[k]*0.3;
+  // Find winner
+  var best=null,bestV=0;
+  for(var k in votes)if(votes[k]>bestV){bestV=votes[k];best=k;}
+  return{fruit:best,score:bestV,votes:votes};
+}
+
 async function runRNG(){
   var btn=document.getElementById('rng-run-btn');
   btn.disabled=true;btn.textContent='Running...';
@@ -601,12 +637,12 @@ async function runRNG(){
 
   for(var i=0;i<LCGS.length;i++){
     var p=LCGS[i];rngProg(10+i*12);rngLog('🧪 LCG: '+p.name);await sleep(20);
-    var f=findSeed(seq,'lcg',p,5000);
+    var f=findSeed(seq,'lcg',p,100000);
     var pred=lcgRun(f.s,p.a,p.c,p.m,n+5);
     allResults.push({name:'LCG ('+p.name+')',acc:f.acc.toFixed(1),next:pred.slice(n,n+5).map(function(x){return NMAP[x];})});
   }
   rngProg(75);rngLog('🧪 XorShift32');await sleep(20);
-  var xf=findSeed(seq,'xor',null,5000);
+  var xf=findSeed(seq,'xor',null,100000);
   var xp=xorRun(xf.s,n+5);
   allResults.push({name:'XorShift32',acc:xf.acc.toFixed(1),next:xp.slice(n,n+5).map(function(x){return NMAP[x];})});
 
@@ -677,6 +713,14 @@ async function runRNG(){
   var hotMap={};last20.forEach(function(f){hotMap[f]=(hotMap[f]||0)+1;});
   var hotSorted=Object.keys(hotMap).sort(function(a,b){return hotMap[b]-hotMap[a];});
   rngLog('🔥 Last 20: '+hotSorted.slice(0,3).map(function(f){return f+':'+hotMap[f];}).join(' '));
+
+  // Entropy test
+  var entropy=calcEntropy(seq);
+  rngLog('🎲 Entropy: '+(entropy*100).toFixed(1)+'% '+(entropy>0.95?'(TRULY RANDOM - hard to predict)':entropy>0.85?'(mostly random)':'(PATTERN DETECTED!)'));
+
+  // Ensemble voting
+  var ensemble=ensembleVote(markovRes,allResults,filled);
+  rngLog('🗳️ ENSEMBLE VOTE: '+ensemble.fruit+' (combined signal)');
 
   // Quick cracker - last 25 rounds only
   var q25=filled.slice(-25);
