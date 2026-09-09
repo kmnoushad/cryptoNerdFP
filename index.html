@@ -170,8 +170,9 @@ body{background:var(--bg);color:var(--text);font-family:Arial,sans-serif;font-si
   </div>
 
   <div class="date-row">
-    <span class="date-lbl">DATE</span>
+    <button class="date-today" onclick="shiftDate(-1)" style="font-size:16px;padding:5px 10px;">‹</button>
     <input class="date-sel" type="date" id="seldate" onchange="onDateChange()"/>
+    <button class="date-today" onclick="shiftDate(1)" style="font-size:16px;padding:5px 10px;">›</button>
     <button class="date-today" onclick="setToday()">TODAY</button>
   </div>
 
@@ -423,6 +424,13 @@ function initApp(){
 }
 function setToday(){curDate=todayUAE();document.getElementById('seldate').value=curDate;loadRounds();}
 function onDateChange(){curDate=document.getElementById('seldate').value;loadRounds();}
+function shiftDate(days){
+  var d=new Date(curDate+'T12:00:00');
+  d.setDate(d.getDate()+days);
+  curDate=d.toISOString().split('T')[0];
+  document.getElementById('seldate').value=curDate;
+  loadRounds();
+}
 
 // ── LOAD — NO user_id filter, shared across all recorders ──
 function loadRounds(){
