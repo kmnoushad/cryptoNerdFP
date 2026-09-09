@@ -390,8 +390,8 @@ var tok=null,uid=null,refreshTok=null,userEmail='';
 // Only these emails can enter/edit/delete rounds. Everyone else
 // signs in and gets a read-only view. Put your own email here —
 // it must match EXACTLY the email used to sign in (lowercase).
-// This is also enforced in Supabase via RLS (see setup SQL).
-var ADMIN_EMAILS=['nkm@example.com'];
+// Database writes must ALSO be enforced in Supabase RLS; HTML checks alone are not security.
+var ADMIN_EMAILS=['nkm.perso@gmail.com'];
 var isAdmin=false;
 function computeRole(){
   isAdmin=ADMIN_EMAILS.indexOf((userEmail||'').trim().toLowerCase())>=0;
@@ -544,7 +544,10 @@ function clrRound(id){
   if(!isAdmin)return denyWrite();
   if(!confirm('Delete this round?'))return;
   fetch(SB_URL+'/rest/v1/rounds?id=eq.'+id,{method:'DELETE',headers:{'apikey':SB_KEY,'Authorization':'Bearer '+tok}})
-  .then(function(){rounds=rounds.filter(function(r){return r.id!==id;});ui();toast('Deleted');});
+  .then(async function(r){
+    if(!r.ok){var msg='Delete blocked';try{var d=await r.json();if(d&&d.message)msg=d.message;}catch(e){}toast(msg);return;}
+    rounds=rounds.filter(function(x){return x.id!==id;});ui();toast('Deleted');
+  }).catch(function(){toast('Delete failed');});
 }
 function openEdit(id){
   if(!isAdmin)return denyWrite();
@@ -1083,10 +1086,40 @@ async function runRNG2(){
 }
 
 // ── RESTORE SESSION ──
-window.addEventListener('load',function(){
+// Never trust the locally stored email to decide editor access.
+// Re-check the authenticated user with Supabase first, then compute the role.
+async function restoreSession(){
   var s=localStorage.getItem('rt_session');
-  if(s){try{var o=JSON.parse(s);tok=o.tok;uid=o.uid;userEmail=(o.email||'').toLowerCase();if(o.refresh)refreshTok=o.refresh;initApp();}catch(e){localStorage.removeItem('rt_session');}}
-});
+  if(!s)return;
+  try{
+    var o=JSON.parse(s);
+    tok=o.tok;uid=o.uid;if(o.refresh)refreshTok=o.refresh;
+
+    async function fetchMe(){
+      return fetch(SB_URL+'/auth/v1/user',{
+        headers:{'apikey':SB_KEY,'Authorization':'Bearer '+tok}
+      });
+    }
+
+    var r=await fetchMe();
+    if(r.status===401){
+      var ok=await refreshToken();
+      if(!ok){localStorage.removeItem('rt_session');return;}
+      r=await fetchMe();
+    }
+    if(!r.ok){localStorage.removeItem('rt_session');return;}
+
+    var me=await r.json();
+    if(!me||!me.id||!me.email){localStorage.removeItem('rt_session');return;}
+    uid=me.id;
+    userEmail=(me.email||'').trim().toLowerCase();
+    saveSession();
+    initApp();
+  }catch(e){
+    localStorage.removeItem('rt_session');
+  }
+}
+window.addEventListener('load',restoreSession);
 </script>
 </body>
 </html>
