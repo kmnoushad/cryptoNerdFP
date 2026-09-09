@@ -167,7 +167,7 @@ body{background:var(--bg);color:var(--text);font-family:Arial,sans-serif;font-si
 
 <div id="app">
   <div class="hdr">
-    <h1>ROUND TRACKER <span style="font-size:9px;color:var(--muted);font-weight:400;">v3.0</span></h1>
+    <h1>ROUND TRACKER <span style="font-size:9px;color:var(--muted);font-weight:400;">v3.1</span></h1>
     <div class="hdr-btns">
       <span class="hbtn" id="role-badge" style="font-weight:700;letter-spacing:1px;">—</span>
       <button class="hbtn" id="refresh-btn" onclick="loadRounds()">↺ REFRESH</button>
@@ -265,6 +265,25 @@ body{background:var(--bg);color:var(--text);font-family:Arial,sans-serif;font-si
 
       <div class="p25-sub">🎯 NEXT PREDICTION (last 25 Markov)</div>
       <div class="p25-predict" id="p25-predict">—</div>
+    </div>
+  </div>
+
+  <!-- ── LAST 100 FREQUENCY + OVERDUE MODEL ── -->
+  <div class="p25" id="p100-panel" style="border-color:#00e5ff55;">
+    <div class="p25-title" style="color:#00e5ff;">
+      <span>🧠 LAST 100 + DUE MODEL</span>
+      <button class="p25-toggle" id="p100-toggle" style="border-color:#00e5ff;color:#00e5ff;" onclick="toggleP100()">HIDE</button>
+    </div>
+    <div id="p100-body">
+      <div id="p100-summary" style="font-size:10px;color:var(--muted);line-height:1.6;margin-bottom:8px;"></div>
+      <div id="p100-table"></div>
+      <div class="p25-sub">⚠️ OVERDUE WATCH</div>
+      <div id="p100-overdue" style="font-size:11px;line-height:1.7;"></div>
+      <div class="p25-sub">📈 NEXT 100 PROJECTION</div>
+      <div id="p100-projection" style="font-size:11px;line-height:1.7;"></div>
+      <div class="p25-sub">🎯 COMBINED WATCH</div>
+      <div id="p100-pick" class="p25-predict" style="font-size:1.15em;letter-spacing:0;">—</div>
+      <div style="font-size:9px;color:var(--muted);margin-top:7px;line-height:1.5;">Due pressure is an anomaly signal, not a guarantee. In an independent RNG, a long absence does not mathematically increase the next-spin probability. The model caps overdue influence and tracks its real accuracy.</div>
     </div>
   </div>
 
@@ -799,6 +818,81 @@ function renderSessionBias(){
   el.innerHTML=html;
 }
 
+
+// ═══════════ LAST 100 FREQUENCY + DUE MODEL ═══════════
+// Uses long-run rates as the stable prior, recent 100 as an adaptive signal,
+// and a capped overdue multiplier. "Due" is deliberately NOT treated as a
+// true probability increase unless the accuracy tracker proves it helps.
+function calcLast100Model(){
+  var f=getFilledRounds(), seq=f.slice(-100).map(function(r){return r.code;});
+  var n=seq.length, fruits=['T','K','O','L','C','S','G','W'];
+  if(!n)return {n:0,rows:[],pick:null};
+  var cnt={T:0,K:0,O:0,L:0,C:0,S:0,G:0,W:0};
+  seq.forEach(function(x){if(cnt[x]!==undefined)cnt[x]++;});
+  var rows=[];
+  fruits.forEach(function(x){
+    var recentPct=cnt[x]/n*100;
+    var rw=0.35*Math.min(1,n/100), bw=1-rw;
+    var blendPct=bw*BASELINE_DEFAULT[x]+rw*recentPct;
+    var last=-1, positions=[];
+    for(var i=0;i<seq.length;i++)if(seq[i]===x){last=i;positions.push(i+1);}
+    var since=last<0?n:(n-1-last);
+    var gaps=[];for(var j=1;j<positions.length;j++)gaps.push(positions[j]-positions[j-1]);
+    var priorMaxGap=gaps.length?Math.max.apply(null,gaps):null;
+    var expectedGap=blendPct>0?100/blendPct:999;
+    var dueRatio=since/expectedGap;
+    var dueBoost=1+Math.min(0.30,Math.max(0,dueRatio-1)*0.20);
+    var raw=blendPct*dueBoost;
+    rows.push({f:x,count:cnt[x],recent:recentPct,blend:blendPct,since:since,expectedGap:expectedGap,due:dueRatio,priorMax:priorMaxGap,raw:raw});
+  });
+  var sumRaw=rows.reduce(function(a,r){return a+r.raw;},0);
+  rows.forEach(function(r){r.model=sumRaw?r.raw/sumRaw*100:0;});
+  var ranked=rows.slice().sort(function(a,b){return b.model-a.model;});
+  var overdue=rows.slice().sort(function(a,b){return b.due-a.due;});
+  return {n:n,rows:rows,ranked:ranked,overdue:overdue,pick:ranked[0]||null};
+}
+
+function renderLast100Model(){
+  var table=document.getElementById('p100-table');if(!table)return;
+  var m=calcLast100Model();
+  if(!m.n){table.innerHTML='<div class="nodata">No rounds yet</div>';return;}
+  document.getElementById('p100-summary').innerHTML='Window: <b>'+m.n+'</b> rounds · 100R = observed frequency · Since = rounds absent · Due = absence ÷ expected gap · Model = blended/capped watch score.';
+  var rows=m.rows.slice().sort(function(a,b){return b.count-a.count;});
+  table.innerHTML='<div style="display:grid;grid-template-columns:46px 42px 48px 48px 52px 1fr;gap:4px;font-size:9px;color:var(--muted);padding:3px 4px;border-bottom:1px solid var(--border);"><span>FRUIT</span><span>100R</span><span>SINCE</span><span>DUE</span><span>MODEL</span><span></span></div>'
+    +rows.map(function(r){
+      var dueCol=r.due>=2?'#ef5350':r.due>=1.25?'#ffd600':'var(--muted)';
+      var tag=r.due>=2?'VERY DUE':r.due>=1.25?'DUE':'';
+      return '<div style="display:grid;grid-template-columns:46px 42px 48px 48px 52px 1fr;gap:4px;align-items:center;font-size:10px;padding:5px 4px;border-bottom:1px solid var(--border);">'
+        +'<span style="color:'+FCOL[r.f]+';font-weight:700;">'+FEMOJI[r.f]+' '+r.f+'</span>'
+        +'<span>'+r.count+' ('+r.recent.toFixed(0)+'%)</span>'
+        +'<span>'+r.since+'</span>'
+        +'<span style="color:'+dueCol+';font-weight:700;">'+r.due.toFixed(2)+'×</span>'
+        +'<span style="font-weight:700;">'+r.model.toFixed(1)+'%</span>'
+        +'<span style="font-size:9px;color:'+dueCol+';">'+tag+'</span></div>';
+    }).join('');
+
+  var od=m.overdue.slice(0,4);
+  document.getElementById('p100-overdue').innerHTML=od.map(function(r){
+    var extra=(r.priorMax!==null&&r.since>r.priorMax)?' · 🚨 above prior max gap '+r.priorMax:'';
+    return '<div><span style="color:'+FCOL[r.f]+';font-weight:700;">'+FEMOJI[r.f]+' '+FNAME[r.f]+'</span>: absent '+r.since+' rounds · expected gap ~'+r.expectedGap.toFixed(1)+' · '+r.due.toFixed(2)+'× expected'+extra+'</div>';
+  }).join('');
+
+  var proj=m.rows.slice().sort(function(a,b){return b.blend-a.blend;});
+  document.getElementById('p100-projection').innerHTML=proj.map(function(r){
+    return '<span style="display:inline-block;margin:2px 7px 2px 0;color:'+FCOL[r.f]+';">'+FEMOJI[r.f]+' '+r.f+' ≈ '+r.blend.toFixed(1)+'/100</span>';
+  }).join('');
+
+  var topBase=m.ranked.slice(0,4).map(function(r){return FEMOJI[r.f]+' '+r.f+' '+r.model.toFixed(1)+'%';}).join(' · ');
+  var dueTop=m.overdue.filter(function(r){return r.due>=1.25;}).slice(0,2).map(function(r){return FEMOJI[r.f]+' '+r.f;}).join(' + ');
+  var pick=document.getElementById('p100-pick');
+  pick.innerHTML='<div style="font-size:10px;color:var(--muted);margin-bottom:4px;">BASE LEADERS</div>'+topBase+(dueTop?'<div style="font-size:10px;color:#ffd600;margin-top:7px;">OVERDUE WATCH: '+dueTop+'</div>':'');
+  pick.style.color='#00e5ff';pick.style.borderColor='#00e5ff';pick.style.background='rgba(0,229,255,.06)';
+}
+function toggleP100(){
+  var b=document.getElementById('p100-body'),t=document.getElementById('p100-toggle');
+  var shown=b.style.display!=='none';b.style.display=shown?'none':'block';t.textContent=shown?'SHOW':'HIDE';
+}
+
 // ═══════════ PREDICTION ACCURACY TRACKER ═══════════
 // Every time the app shows predictions it stashes them against the
 // round they refer to. When that round is actually entered, each
@@ -808,7 +902,8 @@ var METHODS={
   l25 :{label:'Markov last 25',col:'#ffb74d'},
   bias:{label:'Session hot fruit',col:'#00e676'},
   anti:{label:'Anti-streak',col:'#ce93d8'},
-  freq:{label:'Most frequent',col:'#e53935'}
+  freq:{label:'Most frequent',col:'#e53935'},
+  due100:{label:'100R due model',col:'#ffd600'}
 };
 function loadStash(){try{return JSON.parse(localStorage.getItem('rt_predlog')||'{}');}catch(e){return {};}}
 function saveStash(o){localStorage.setItem('rt_predlog',JSON.stringify(o));}
@@ -856,6 +951,10 @@ function currentPredictions(){
 
   // freq — simply the highest-baseline fruit
   p.freq='T';
+
+  // due100 — last-100 frequency + capped overdue model
+  var dm=calcLast100Model();
+  p.due100=(dm&&dm.pick)?dm.pick.f:null;
 
   return p;
 }
@@ -981,8 +1080,9 @@ function ui(){
     seqMatch(2,'seq2');seqMatch(3,'seq3');seqMatch(4,'seq4');seqMatch(5,'seq5');
   } else sa.style.display='none';
 
-  // Last 25 panel
+  // Last 25 + Last 100 panels
   renderLast25(getFilledRounds());
+  renderLast100Model();
   // Session bias + accuracy scoreboard
   renderSessionBias();
   renderAccuracy();
