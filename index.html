@@ -123,6 +123,28 @@ body{background:var(--bg);color:var(--text);font-family:Arial,sans-serif;font-si
 .rng-result{background:#0d0f14;border:1px solid var(--border);border-radius:6px;padding:10px;margin-bottom:6px;}
 .rng-result-title{font-size:9px;color:var(--muted);letter-spacing:1px;margin-bottom:6px;}
 .rng-log{font-size:10px;color:var(--muted);font-family:monospace;line-height:1.7;}
+/* ── LAST 25 PANEL ── */
+.p25{background:var(--panel);border:1px solid #ffb74d44;border-radius:8px;padding:12px;margin-bottom:8px;}
+.p25-title{font-size:9px;color:#ffb74d;letter-spacing:2px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;}
+.p25-sub{font-size:9px;color:var(--muted);letter-spacing:1px;margin:8px 0 4px;}
+.p25-bar{display:flex;flex-wrap:wrap;gap:4px;padding:4px 0 8px;}
+.p25-icon{background:#1a1f2e;border-radius:6px;padding:4px 7px;font-size:1.2em;border:1px solid #333;position:relative;}
+.p25-icon.newest{border:2px solid #ffd600;}
+.p25-streak{font-size:1.1em;font-weight:700;color:#ffd600;margin-bottom:6px;}
+.p25-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px;}
+.p25-card{background:#0d0f14;border-radius:6px;padding:8px;}
+.p25-card-title{font-size:9px;color:var(--muted);letter-spacing:1px;margin-bottom:4px;}
+.p25-fruit-row{display:flex;align-items:center;justify-content:space-between;padding:2px 0;font-size:11px;}
+.p25-cluster{font-size:10px;color:#ccc;line-height:1.8;}
+.p25-due{font-size:10px;line-height:1.8;}
+.p25-predict{font-size:1.6em;font-weight:900;text-align:center;padding:10px;border-radius:8px;border:2px solid #00FF88;color:#00FF88;background:rgba(0,255,136,.06);margin-top:6px;letter-spacing:2px;}
+.p25-toggle{background:transparent;border:1px solid #ffb74d;color:#ffb74d;border-radius:5px;font-size:10px;padding:3px 8px;cursor:pointer;}
+/* game layout grid */
+.game-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin:6px 0;}
+.gg-cell{background:#0d0f14;border:1px solid #333;border-radius:5px;padding:6px 4px;text-align:center;font-size:11px;font-weight:700;}
+.gg-cell .pct{font-size:9px;font-weight:400;color:var(--muted);display:block;}
+.gg-cell.hot{border-color:#ffd600;background:rgba(255,214,0,.08);}
+.gg-cell.cold{border-color:#333;opacity:.6;}
 </style>
 </head>
 <body>
@@ -140,7 +162,7 @@ body{background:var(--bg);color:var(--text);font-family:Arial,sans-serif;font-si
 
 <div id="app">
   <div class="hdr">
-    <h1>ROUND TRACKER <span style="font-size:9px;color:var(--muted);font-weight:400;">v2.1</span></h1>
+    <h1>ROUND TRACKER <span style="font-size:9px;color:var(--muted);font-weight:400;">v3.0</span></h1>
     <div class="hdr-btns">
       <button class="hbtn" id="refresh-btn" onclick="loadRounds()">↺ REFRESH</button>
       <button class="hbtn" onclick="doLogout()">LOGOUT</button>
@@ -199,6 +221,44 @@ body{background:var(--bg);color:var(--text);font-family:Arial,sans-serif;font-si
       <button class="fb W" id="fb-W" onclick="enter('W')">W<span class="fc" id="fc-W"></span></button>
     </div>
     <div class="ss-row"><span id="ss"></span></div>
+  </div>
+
+  <!-- ── LAST 25 VISUAL PANEL ── -->
+  <div class="p25" id="p25-panel">
+    <div class="p25-title">
+      <span>📊 LAST 25 PATTERN</span>
+      <button class="p25-toggle" onclick="toggleP25()">HIDE</button>
+    </div>
+    <div id="p25-body">
+      <div class="p25-sub">SEQUENCE (newest → oldest, 🌟=latest)</div>
+      <div class="p25-bar" id="p25-bar"></div>
+
+      <div class="p25-sub">🔥 CURRENT STREAK</div>
+      <div class="p25-streak" id="p25-streak">—</div>
+
+      <div class="p25-grid">
+        <div class="p25-card">
+          <div class="p25-card-title">🔥 HOT (last 25)</div>
+          <div id="p25-hot"></div>
+        </div>
+        <div class="p25-card">
+          <div class="p25-card-title">❄️ COLD (last 25)</div>
+          <div id="p25-cold"></div>
+        </div>
+      </div>
+
+      <div class="p25-sub">🗺️ GRID HEAT MAP (last 25)</div>
+      <div class="game-grid" id="p25-grid"></div>
+
+      <div class="p25-sub">🔁 CLUSTER PATTERN</div>
+      <div class="p25-cluster" id="p25-cluster">—</div>
+
+      <div class="p25-sub">⚠️ OVERDUE</div>
+      <div class="p25-due" id="p25-due">—</div>
+
+      <div class="p25-sub">🎯 NEXT PREDICTION (last 25 Markov)</div>
+      <div class="p25-predict" id="p25-predict">—</div>
+    </div>
   </div>
 
   <div style="display:flex;gap:6px;margin-bottom:8px;">
@@ -297,10 +357,18 @@ body{background:var(--bg);color:var(--text);font-family:Arial,sans-serif;font-si
 var SB_URL='https://hyfiqhjjhbarijbodupa.supabase.co';
 var SB_KEY='sb_publishable_mf1dNfI_2D_hojbW95wZBA_73YF50u3';
 var tok=null,uid=null,refreshTok=null;
-var rounds=[]; // ALL rounds loaded from Supabase
+var rounds=[];
 var curDate='';
 var enterDir=1;
 var editingId=null,editingCode=null;
+var p25Visible=true;
+
+// ── FRUIT DATA ──
+var FEMOJI={T:'🍅',K:'🥝',O:'🍊',L:'🍋',C:'🍒',S:'🍓',G:'🍇',W:'🍉'};
+var FNAME={T:'Tomato',K:'Kiwi',O:'Orange',L:'Lemon',C:'Cherry',S:'Strawberry',G:'Grape',W:'Watermelon'};
+var FCOL={T:'#e53935',K:'#43a047',O:'#fb8c00',L:'#fdd835',C:'#e91e63',S:'#ffb74d',G:'#ce93d8',W:'#00e676'};
+// Grid layout: T K O / W _ L / G S C
+var GRID_LAYOUT=['T','K','O','W','','L','G','S','C'];
 
 // ── UTILS ──
 function nowTime(){var d=new Date();var u=new Date(d.getTime()+4*60*60*1000);return u.toISOString().split('T')[1].substring(0,8);}
@@ -308,6 +376,7 @@ function todayUAE(){var d=new Date();var u=new Date(d.getTime()+4*60*60*1000);re
 function toast(m){var t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(function(){t.classList.remove('show');},2500);}
 function setDir(d){enterDir=d;localStorage.setItem('rt_dir',d);document.getElementById('btn-up').className='dir-btn'+(d===1?' active':'');document.getElementById('btn-down').className='dir-btn'+(d===-1?' active':'');}
 function adjRound(d){var el=document.getElementById('rnum');var v=Math.max(1,Math.min(2600,(parseInt(el.value)||1)+d));el.value=v;localStorage.setItem('rt_rnum',v);}
+function toggleP25(){p25Visible=!p25Visible;document.getElementById('p25-body').style.display=p25Visible?'block':'none';document.querySelector('.p25-toggle').textContent=p25Visible?'HIDE':'SHOW';}
 
 // ── AUTH ──
 function amsg(txt,type){var e=document.getElementById('amsg');e.textContent=txt;e.className=type==='ok'?'aok':'aerr';e.style.display='block';}
@@ -346,62 +415,47 @@ async function refreshToken(){
 function initApp(){
   document.getElementById('auth').style.display='none';
   document.getElementById('app').style.display='flex';
-  // Restore round number and direction
   var savedDir=localStorage.getItem('rt_dir');
   var savedRnum=localStorage.getItem('rt_rnum');
   if(savedDir)setDir(parseInt(savedDir));
   if(savedRnum)document.getElementById('rnum').value=savedRnum;
   setToday();
 }
-function setToday(){
-  curDate=todayUAE();
-  document.getElementById('seldate').value=curDate;
-  loadRounds();
-}
-function onDateChange(){
-  curDate=document.getElementById('seldate').value;
-  loadRounds();
-}
+function setToday(){curDate=todayUAE();document.getElementById('seldate').value=curDate;loadRounds();}
+function onDateChange(){curDate=document.getElementById('seldate').value;loadRounds();}
 
-// ── LOAD ──
+// ── LOAD — NO user_id filter, shared across all recorders ──
 function loadRounds(){
   var btn=document.getElementById('refresh-btn');
   btn.textContent='Loading...';
   document.getElementById('hl').innerHTML='<div class="nodata">Loading...</div>';
-  // Load ALL rounds for selected date only
   fetch(SB_URL+'/rest/v1/rounds?play_date=eq.'+curDate+'&order=round_number.asc&limit=9999',{
     headers:{'apikey':SB_KEY,'Authorization':'Bearer '+tok,'Range':'0-9999'}
   }).then(function(r){
-    if(r.status===401){
-      refreshToken().then(function(ok){if(ok)loadRounds();else{toast('Session expired');setTimeout(doLogout,1500);}});
-      return null;
-    }
+    if(r.status===401){refreshToken().then(function(ok){if(ok)loadRounds();else{toast('Session expired');setTimeout(doLogout,1500);}});return null;}
     return r.json();
   }).then(function(d){
     btn.textContent='↺ REFRESH';
     if(!d)return;
-    if(!Array.isArray(d)){toast('Error loading: '+JSON.stringify(d).substring(0,60));return;}
+    if(!Array.isArray(d)){toast('Error: '+JSON.stringify(d).substring(0,60));return;}
     rounds=d;
-    // Auto-set round number to last+1 if not manually set
     var filled=d.filter(function(r){return r.code&&r.code!=='';});
     if(filled.length>0){
       var mx=filled.reduce(function(a,b){return a.round_number>b.round_number?a:b;});
       var next=enterDir===1?Math.min(2600,mx.round_number+1):Math.max(1,mx.round_number-1);
-      if(!localStorage.getItem('rt_rnum')){document.getElementById('rnum').value=next;}
+      if(!localStorage.getItem('rt_rnum'))document.getElementById('rnum').value=next;
     }
     ui();
   }).catch(function(e){btn.textContent='↺ REFRESH';toast('Network error');});
 }
 
-// ── ENTER ──
+// ── ENTER — first recorder wins, others get confirm prompt ──
 function enter(code){
   var rnum=parseInt(document.getElementById('rnum').value)||1;
-  // Check if round already exists for this date
   var existing=rounds.find(function(r){return r.round_number===rnum;});
   if(existing&&existing.code&&existing.code!==''){
-    // Ask for confirmation before overwrite
-    if(!confirm('Round #'+rnum+' already = '+existing.code+'\n\nOverwrite with '+code+'?'))return;
-    fetch(SB_URL+'/rest/v1/rounds?id=eq.'+existing.id,{method:'PATCH',headers:{'Content-Type':'application/json','apikey':SB_KEY,'Authorization':'Bearer '+tok,'Prefer':'return=representation'},body:JSON.stringify({code:code,play_time:nowTime()})})
+    if(!confirm('Round #'+rnum+' already recorded as '+existing.code+'\n\nOverwrite with '+code+'?'))return;
+    fetch(SB_URL+'/rest/v1/rounds?id=eq.'+existing.id,{method:'PATCH',headers:{'Content-Type':'application/json','apikey':SB_KEY,'Authorization':'Bearer '+tok,'Prefer':'return=representation'},body:JSON.stringify({code:code,play_time:nowTime(),user_id:uid})})
     .then(function(r){return r.json();}).then(function(d){
       if(Array.isArray(d)&&d[0]){var i=rounds.findIndex(function(r){return r.id===existing.id;});if(i>=0)rounds[i]=d[0];advance(rnum);ui();toast('Overwritten');}
     });return;
@@ -411,17 +465,14 @@ function enter(code){
   .then(function(r){return r.json();}).then(function(d){
     document.getElementById('ss').textContent='';
     if(Array.isArray(d)&&d[0]){
-      rounds.push(d[0]);
-      rounds.sort(function(a,b){return a.round_number-b.round_number;});
+      rounds.push(d[0]);rounds.sort(function(a,b){return a.round_number-b.round_number;});
       advance(rnum);ui();
+    }else if(d&&d.code==='23505'){
+      toast('Round #'+rnum+' already exists — refresh to see');loadRounds();
     }else toast('Save error: '+(d&&d.message?d.message:JSON.stringify(d)));
   }).catch(function(e){document.getElementById('ss').textContent='';toast(''+e);});
 }
-function advance(rnum){
-  var v=enterDir===1?Math.min(2600,rnum+1):Math.max(1,rnum-1);
-  document.getElementById('rnum').value=v;
-  localStorage.setItem('rt_rnum',v);
-}
+function advance(rnum){var v=enterDir===1?Math.min(2600,rnum+1):Math.max(1,rnum-1);document.getElementById('rnum').value=v;localStorage.setItem('rt_rnum',v);}
 
 // ── CLR / EDIT ──
 function clrRound(id){
@@ -456,24 +507,147 @@ function predict(){
   var f=getFilledRounds(),c=f.map(function(r){return r.code;}),n=c.length;
   if(n<4)return{t:'—',cl:'',info:'need more data'};
   var p0=c[n-3],p1=c[n-2],p2=c[n-1];
-  // Track ALL 8 fruits
   var counts={T:0,K:0,O:0,L:0,C:0,S:0,G:0,W:0};
   for(var i=0;i<=n-4;i++)if(c[i]===p0&&c[i+1]===p1&&c[i+2]===p2){var x=c[i+3];if(counts[x]!==undefined)counts[x]++;}
   var total=0;for(var k in counts)total+=counts[k];
   if(total===0)return{t:'—',cl:'',info:'no pattern yet'};
-  // Find max
   var maxCount=0,maxFruit='';
   for(var k in counts)if(counts[k]>maxCount){maxCount=counts[k];maxFruit=k;}
   if(maxCount<3)return{t:'—',cl:'',info:'need 3+ matches (max '+maxCount+')'};
   var cl=['G','W','S','C'].indexOf(maxFruit)>=0?maxFruit.toLowerCase():'';
   function pct(v){return Math.round(v/total*100)+'%';}
-  // Show top 3 predictions
   var sorted=Object.keys(counts).filter(function(k){return counts[k]>0;}).sort(function(a,b){return counts[b]-counts[a];});
   var topInfo=sorted.slice(0,4).map(function(k){return k+':'+counts[k]+'('+pct(counts[k])+')';}).join(' ');
   var info='Pattern:'+p0+'→'+p1+'→'+p2+'\n'+topInfo+'\nMatches:'+total;
   var sw=since('W');if(sw!==null&&sw>=100)info+='\n🚨W DANGER('+sw+')';
   var sg=since('G');if(sg!==null&&sg>=60)info+='\n⚠️G overdue('+sg+')';
   return{t:maxFruit,cl:cl,info:info};
+}
+
+// ── LAST 25 VISUAL ANALYSIS ──
+function buildMarkovSimple(seq,order){
+  var chain={};
+  for(var i=order;i<seq.length;i++){
+    var key=seq.slice(i-order,i).join(',');
+    var nx=seq[i];
+    if(!chain[key])chain[key]={};
+    chain[key][nx]=(chain[key][nx]||0)+1;
+  }
+  return chain;
+}
+function markovNext(chain,last,order){
+  var key=last.slice(-order).join(',');
+  if(!chain[key])return null;
+  var c=chain[key],best=null,bc=0,tot=0;
+  for(var k in c){tot+=c[k];if(c[k]>bc){bc=c[k];best=k;}}
+  return best?{fruit:best,conf:(bc/tot*100).toFixed(0),matches:tot}:null;
+}
+
+function renderLast25(filled){
+  var last25=filled.slice(-25).map(function(r){return r.code;}).reverse(); // newest first
+  if(last25.length<3){
+    document.getElementById('p25-predict').textContent='Need 3+ rounds';
+    return;
+  }
+
+  // 1. Visual bar
+  var barEl=document.getElementById('p25-bar');
+  barEl.innerHTML=last25.map(function(c,i){
+    return '<span class="p25-icon'+(i===0?' newest':'')+'" title="'+FNAME[c]+'" style="border-color:'+(i===0?'#ffd600':'#333')+'">'
+      +FEMOJI[c]+(i===0?'<br><span style="font-size:7px;color:#ffd600">NEW</span>':'')+'</span>';
+  }).join('');
+
+  // 2. Streak
+  var streak=1;
+  while(streak<last25.length&&last25[streak]===last25[0])streak++;
+  var streakEl=document.getElementById('p25-streak');
+  if(streak>1){
+    streakEl.textContent=FEMOJI[last25[0]]+' '+FNAME[last25[0]]+' × '+streak+' in a row!';
+    streakEl.style.color='#ffd600';
+  } else {
+    streakEl.textContent='No repeat — '+FEMOJI[last25[0]]+' '+FNAME[last25[0]]+' is latest';
+    streakEl.style.color='var(--muted)';
+  }
+
+  // 3. Hot / Cold
+  var freq={};
+  last25.forEach(function(c){freq[c]=(freq[c]||0)+1;});
+  var sorted=Object.keys(freq).sort(function(a,b){return freq[b]-freq[a];});
+  var allFruits=['T','K','O','L','C','S','G','W'];
+  var missing=allFruits.filter(function(f){return!freq[f];});
+  var hotEl=document.getElementById('p25-hot');
+  hotEl.innerHTML=sorted.slice(0,3).map(function(c){
+    return '<div class="p25-fruit-row"><span>'+FEMOJI[c]+' '+FNAME[c]+'</span><span style="color:'+FCOL[c]+';font-weight:700;">'+freq[c]+'x</span></div>';
+  }).join('');
+  var coldEl=document.getElementById('p25-cold');
+  coldEl.innerHTML=sorted.slice(-3).reverse().map(function(c){
+    return '<div class="p25-fruit-row"><span>'+FEMOJI[c]+' '+FNAME[c]+'</span><span style="color:#555;font-weight:700;">'+(freq[c]||0)+'x</span></div>';
+  }).join('');
+  if(missing.length){
+    coldEl.innerHTML+='<div style="color:#ef5350;font-size:10px;margin-top:4px;">Not seen: '+missing.map(function(f){return FEMOJI[f];}).join(' ')+'</div>';
+  }
+
+  // 4. Grid heat map
+  var gridEl=document.getElementById('p25-grid');
+  var total25=last25.length;
+  gridEl.innerHTML=GRID_LAYOUT.map(function(f){
+    if(!f)return '<div class="gg-cell" style="background:#0a0c10;border:none;"></div>';
+    var cnt=freq[f]||0;
+    var pct=Math.round(cnt/total25*100);
+    var isHot=sorted.indexOf(f)<=1&&cnt>=3;
+    var isCold=cnt<=1;
+    return '<div class="gg-cell'+(isHot?' hot':isCold?' cold':'')+'" style="color:'+FCOL[f]+'">'
+      +FEMOJI[f]+' '+f+'<span class="pct">'+cnt+'x / '+pct+'%</span></div>';
+  }).join('');
+
+  // 5. Cluster pattern
+  var clusters=[];
+  var i2=0;
+  while(i2<last25.length){
+    var j=i2;
+    while(j<last25.length&&last25[j]===last25[i2])j++;
+    if(j-i2>1)clusters.push(FEMOJI[last25[i2]]+'×'+( j-i2));
+    i2=j;
+  }
+  document.getElementById('p25-cluster').textContent=
+    clusters.length?'Found: '+clusters.join('  '):'No consecutive repeats in last 25';
+
+  // 6. Overdue
+  var dueLines=[];
+  if(missing.length)dueLines.push('<span style="color:#ef5350">🚨 Not seen: '+missing.map(function(f){return FEMOJI[f]+' '+FNAME[f];}).join(', ')+'</span>');
+  var onceSeen=sorted.filter(function(f){return freq[f]===1;});
+  if(onceSeen.length)dueLines.push('<span style="color:#ffb74d">⚠️ Seen once: '+onceSeen.map(function(f){return FEMOJI[f]+' '+FNAME[f];}).join(', ')+'</span>');
+  if(!dueLines.length)dueLines.push('<span style="color:var(--green)">✅ All fruits appeared</span>');
+  document.getElementById('p25-due').innerHTML=dueLines.join('<br>');
+
+  // 7. Markov prediction from last 25
+  var seq25=last25.slice().reverse(); // oldest first for markov
+  var chain2=buildMarkovSimple(seq25,2);
+  var chain3=buildMarkovSimple(seq25,3);
+  var mp2=markovNext(chain2,seq25,2);
+  var mp3=markovNext(chain3,seq25,3);
+  // Pick best confidence
+  var best=null;
+  if(mp3&&mp3.matches>=2)best=mp3;
+  else if(mp2&&mp2.matches>=2)best=mp2;
+  else best=mp2||mp3;
+
+  var predEl=document.getElementById('p25-predict');
+  if(best&&best.fruit){
+    predEl.textContent=FEMOJI[best.fruit]+' '+best.fruit+' — '+FNAME[best.fruit];
+    predEl.style.color=FCOL[best.fruit];
+    predEl.style.borderColor=FCOL[best.fruit];
+    predEl.style.background='rgba('+hexToRgb(FCOL[best.fruit])+',0.06)';
+    predEl.title='Confidence: '+best.conf+'% from '+best.matches+' matches';
+  } else {
+    predEl.textContent='— not enough pattern —';
+    predEl.style.color='var(--muted)';
+    predEl.style.borderColor='var(--muted)';
+  }
+}
+function hexToRgb(hex){
+  var r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
+  return r+','+g+','+b;
 }
 
 // ── UI ──
@@ -485,17 +659,14 @@ function ui(){
   document.getElementById('pinfo').textContent=p.info+'\n'+new Date().toTimeString().substring(0,5);
   ['T','K','O','L','C','S','G','W'].forEach(function(c){var b=document.querySelector('.fb.'+c);if(b)b.classList.toggle('predicted',p.t===c);});
 
-  // Counters
   function sc(cid,bid,code,w,d){var v=since(code);document.getElementById(cid).textContent=v===null?'—':v;document.getElementById(bid).className='cbox'+(v!==null&&v>=d?' danger':v!==null&&v>=w?' warn':'');}
   sc('cs','bs','S',22,35);sc('cg','bg','G',37,60);sc('cw','bw','W',60,100);
 
-  // Fruit counts (last 100)
   var last100=getFilledRounds().slice(-100).map(function(r){return r.code;});
   var cnt={T:0,K:0,O:0,L:0,C:0,S:0,G:0,W:0};
   last100.forEach(function(x){if(cnt[x]!==undefined)cnt[x]++;});
   ['T','K','O','L','C','S','G','W'].forEach(function(f){var el=document.getElementById('fc-'+f);if(el)el.textContent=cnt[f]||'';});
 
-  // Sequence match
   var f2=getFilledRounds(),c2=f2.map(function(r){return r.code;}),n2=c2.length;
   var sa=document.getElementById('seq-alert');
   if(n2>=2){
@@ -512,7 +683,9 @@ function ui(){
     seqMatch(2,'seq2');seqMatch(3,'seq3');seqMatch(4,'seq4');seqMatch(5,'seq5');
   } else sa.style.display='none';
 
-  // History - show selected date only
+  // Last 25 panel
+  renderLast25(getFilledRounds());
+
   var dateRounds=rounds.filter(function(r){return r.code&&r.code!=='';}).slice().reverse();
   var hl=document.getElementById('hl');
   if(!dateRounds.length){hl.innerHTML='<div class="nodata">No rounds for '+curDate+'</div>';return;}
@@ -545,7 +718,6 @@ function searchPattern(){
 
 // ── RNG ──
 var FMAP={T:0,K:1,O:2,L:3,C:4,S:5,G:6,W:7},NMAP={0:'T',1:'K',2:'O',3:'L',4:'C',5:'S',6:'G',7:'W'};
-var FCOL={T:'#e53935',K:'#43a047',O:'#fb8c00',L:'#fdd835',C:'#e91e63',S:'#ffb74d',G:'#ce93d8',W:'#00e676'};
 var WEIGHTS=[20,20,20,20,10,6.7,4,2.5],TW=103.7;
 var rngLogs=[];
 function rngLog(m){rngLogs.unshift(m);if(rngLogs.length>15)rngLogs.pop();var el=document.getElementById('rng-log');if(el){el.innerHTML=rngLogs.join('<br>');document.getElementById('rng-log-box').style.display='block';}}
@@ -557,250 +729,63 @@ function rngAcc(pred,act){var ok=0,n=Math.min(pred.length,act.length);for(var i=
 function findSeed(seq,algo,p,range){var best={s:1,acc:0},ts=seq.slice(-50);for(var s=1;s<=range;s++){var pred=algo==='lcg'?lcgRun(s,p.a,p.c,p.m,ts.length):xorRun(s,ts.length);var acc=rngAcc(pred,ts);if(acc>best.acc){best.acc=acc;best.s=s;}}return best;}
 function buildMarkov(seq,order){var chain={};for(var i=order;i<seq.length;i++){var key=seq.slice(i-order,i).join(','),nx=seq[i];if(!chain[key])chain[key]={};chain[key][nx]=(chain[key][nx]||0)+1;}return chain;}
 function markovPredict(chain,last,order){var key=last.slice(-order).join(',');if(!chain[key])return null;var c=chain[key],tot=Object.values(c).reduce(function(a,b){return a+b;},0);var best=null,bc=0;Object.keys(c).forEach(function(f){if(c[f]>bc){bc=c[f];best=f;}});return{fruit:best,conf:(bc/tot*100).toFixed(1),total:tot};}
-// LFSR - Linear Feedback Shift Register
-function lfsrRun(seed, taps, bits, count) {
-  var res = [], x = seed & ((1<<bits)-1);
-  for(var i=0;i<count;i++){
-    var bit=0;
-    for(var t=0;t<taps.length;t++) bit^=(x>>(taps[t]-1))&1;
-    x=((x>>1)|(bit<<(bits-1)))&((1<<bits)-1);
-    res.push(wIdx(x, (1<<bits)-1));
-  }
-  return res;
-}
-
-// Common LFSR configurations
-var LFSRS=[
-  {name:'LFSR-8',bits:8,taps:[8,6,5,4]},
-  {name:'LFSR-16',bits:16,taps:[16,15,13,4]},
-  {name:'LFSR-12',bits:12,taps:[12,11,10,4]},
-];
-
-function findLFSRSeed(seq, lf, range){
-  var best={s:1,acc:0}, ts=seq.slice(-50);
-  for(var s=1;s<=range;s++){
-    var pred=lfsrRun(s,lf.taps,lf.bits,ts.length);
-    var acc=rngAcc(pred,ts);
-    if(acc>best.acc){best.acc=acc;best.s=s;}
-  }
-  return best;
-}
-
+function lfsrRun(seed,taps,bits,count){var res=[],x=seed&((1<<bits)-1);for(var i=0;i<count;i++){var bit=0;for(var t=0;t<taps.length;t++)bit^=(x>>(taps[t]-1))&1;x=((x>>1)|(bit<<(bits-1)))&((1<<bits)-1);res.push(wIdx(x,(1<<bits)-1));}return res;}
+var LFSRS=[{name:'LFSR-8',bits:8,taps:[8,6,5,4]},{name:'LFSR-16',bits:16,taps:[16,15,13,4]},{name:'LFSR-12',bits:12,taps:[12,11,10,4]}];
+function findLFSRSeed(seq,lf,range){var best={s:1,acc:0},ts=seq.slice(-50);for(var s=1;s<=range;s++){var pred=lfsrRun(s,lf.taps,lf.bits,ts.length);var acc=rngAcc(pred,ts);if(acc>best.acc){best.acc=acc;best.s=s;}}return best;}
 var LCGS=[{name:'Numerical Recipes',a:1664525,c:1013904223,m:4294967296},{name:'glibc',a:1103515245,c:12345,m:2147483648},{name:'Borland C++',a:22695477,c:1,m:4294967296},{name:'MINSTD',a:16807,c:0,m:2147483647},{name:'ZX81',a:75,c:74,m:65537}];
 function sleep(ms){return new Promise(function(r){setTimeout(r,ms);});}
-
-// Entropy test - measures randomness (0=predictable, 1=fully random)
-function calcEntropy(seq){
-  var counts={};
-  seq.forEach(function(x){counts[x]=(counts[x]||0)+1;});
-  var n=seq.length,entropy=0;
-  for(var k in counts){var p=counts[k]/n;entropy-=p*Math.log2(p);}
-  return entropy/Math.log2(8); // normalize to 0-1 (8 fruits)
-}
-
-// Ensemble voting - combines all signals
-function ensembleVote(markovRes, allResults, filled){
-  var votes={T:0,K:0,O:0,L:0,C:0,S:0,G:0,W:0};
-  // Markov votes (weighted by accuracy and matches)
-  markovRes.forEach(function(m){
-    if(m.matches>0&&m.next!=='—'){
-      var weight=parseFloat(m.acc)/100*Math.min(m.matches,10);
-      votes[m.next]=(votes[m.next]||0)+weight*2; // markov weighted higher
-    }
-  });
-  // Frequency votes (recent bias)
-  var last20=filled.slice(-20).map(function(r){return r.code;});
-  var freq={};last20.forEach(function(x){freq[x]=(freq[x]||0)+1;});
-  for(var k in freq)votes[k]=(votes[k]||0)+freq[k]*0.3;
-  // Find winner
-  var best=null,bestV=0;
-  for(var k in votes)if(votes[k]>bestV){bestV=votes[k];best=k;}
-  return{fruit:best,score:bestV,votes:votes};
-}
+function calcEntropy(seq){var counts={};seq.forEach(function(x){counts[x]=(counts[x]||0)+1;});var n=seq.length,entropy=0;for(var k in counts){var p=counts[k]/n;entropy-=p*Math.log2(p);}return entropy/Math.log2(8);}
+function ensembleVote(markovRes,allResults,filled){var votes={T:0,K:0,O:0,L:0,C:0,S:0,G:0,W:0};markovRes.forEach(function(m){if(m.matches>0&&m.next!=='—'){var weight=parseFloat(m.acc)/100*Math.min(m.matches,10);votes[m.next]=(votes[m.next]||0)+weight*2;}});var last20=filled.slice(-20).map(function(r){return r.code;});var freq={};last20.forEach(function(x){freq[x]=(freq[x]||0)+1;});for(var k in freq)votes[k]=(votes[k]||0)+freq[k]*0.3;var best=null,bestV=0;for(var k in votes)if(votes[k]>bestV){bestV=votes[k];best=k;}return{fruit:best,score:bestV,votes:votes};}
 
 async function runRNG(){
-  var btn=document.getElementById('rng-run-btn');
-  btn.disabled=true;btn.textContent='Running...';
+  var btn=document.getElementById('rng-run-btn');btn.disabled=true;btn.textContent='Running...';
   rngLogs=[];rngProg(5);
-  document.getElementById('rng-best').style.display='none';
-  document.getElementById('rng-markov').style.display='none';
-  document.getElementById('rng-algos').style.display='none';
-
+  document.getElementById('rng-best').style.display='none';document.getElementById('rng-markov').style.display='none';document.getElementById('rng-algos').style.display='none';
   var filled=getFilledRounds();
   rngLog('📅 Date: '+curDate+' | Rounds: '+filled.length);
-  if(filled.length<10){rngLog('❌ Need 10+ rounds — tap Refresh first');btn.disabled=false;btn.textContent='▶ RUN ANALYSIS';return;}
-
-  var seq=filled.map(function(r){return FMAP[r.code];});
-  var n=seq.length;
-  rngLog('✅ Analyzing '+n+' rounds');
-  var allResults=[];
-
-  for(var i=0;i<LCGS.length;i++){
-    var p=LCGS[i];rngProg(10+i*12);rngLog('🧪 LCG: '+p.name);await sleep(20);
-    var f=findSeed(seq,'lcg',p,100000);
-    var pred=lcgRun(f.s,p.a,p.c,p.m,n+5);
-    allResults.push({name:'LCG ('+p.name+')',acc:f.acc.toFixed(1),next:pred.slice(n,n+5).map(function(x){return NMAP[x];})});
-  }
-  rngProg(75);rngLog('🧪 XorShift32');await sleep(20);
-  var xf=findSeed(seq,'xor',null,100000);
-  var xp=xorRun(xf.s,n+5);
-  allResults.push({name:'XorShift32',acc:xf.acc.toFixed(1),next:xp.slice(n,n+5).map(function(x){return NMAP[x];})});
-
-  // Test LFSR
+  if(filled.length<10){rngLog('❌ Need 10+ rounds');btn.disabled=false;btn.textContent='▶ RUN ANALYSIS';return;}
+  var seq=filled.map(function(r){return FMAP[r.code];}),n=seq.length,allResults=[];
+  for(var i=0;i<LCGS.length;i++){var p=LCGS[i];rngProg(10+i*12);rngLog('🧪 LCG: '+p.name);await sleep(20);var f=findSeed(seq,'lcg',p,100000);var pred=lcgRun(f.s,p.a,p.c,p.m,n+5);allResults.push({name:'LCG ('+p.name+')',acc:f.acc.toFixed(1),next:pred.slice(n,n+5).map(function(x){return NMAP[x];})});}
+  rngProg(75);rngLog('🧪 XorShift32');await sleep(20);var xf=findSeed(seq,'xor',null,100000);var xp=xorRun(xf.s,n+5);allResults.push({name:'XorShift32',acc:xf.acc.toFixed(1),next:xp.slice(n,n+5).map(function(x){return NMAP[x];})});
   rngProg(80);
-  for(var li=0;li<LFSRS.length;li++){
-    var lf=LFSRS[li];rngLog('🧪 '+lf.name);await sleep(20);
-    var lff=findLFSRSeed(seq,lf,3000);
-    var lfpred=lfsrRun(lff.s,lf.taps,lf.bits,n+5);
-    allResults.push({name:lf.name,acc:lff.acc.toFixed(1),next:lfpred.slice(n,n+5).map(function(x){return NMAP[x];})});
-    rngLog('  → '+lff.acc.toFixed(1)+'%');
-  }
-
+  for(var li=0;li<LFSRS.length;li++){var lf=LFSRS[li];rngLog('🧪 '+lf.name);await sleep(20);var lff=findLFSRSeed(seq,lf,3000);var lfpred=lfsrRun(lff.s,lf.taps,lf.bits,n+5);allResults.push({name:lf.name,acc:lff.acc.toFixed(1),next:lfpred.slice(n,n+5).map(function(x){return NMAP[x];})});rngLog('  → '+lff.acc.toFixed(1)+'%');}
   rngProg(88);rngLog('🧪 Markov Chain');await sleep(20);
   var markovRes=[];
-  for(var ord=2;ord<=4;ord++){
-    var chain=buildMarkov(seq,ord);
-    var mp=markovPredict(chain,seq.slice(-ord),ord);
-    var testStart=Math.floor(n*0.8),ok=0,tot=0;
-    for(var j=testStart+ord;j<n;j++){var pp=markovPredict(chain,seq.slice(j-ord,j),ord);if(pp&&parseInt(pp.fruit)===seq[j])ok++;tot++;}
-    var macc=tot>0?(ok/tot*100).toFixed(1):0;
-    var nf=mp&&mp.total>0?NMAP[parseInt(mp.fruit)]:'—';
-    markovRes.push({order:ord,acc:macc,next:nf,conf:mp?mp.conf:0,matches:mp?mp.total:0});
-    rngLog('  Order '+ord+': '+macc+'% → '+nf);
-  }
-
+  for(var ord=2;ord<=4;ord++){var chain=buildMarkov(seq,ord);var mp=markovPredict(chain,seq.slice(-ord),ord);var testStart=Math.floor(n*0.8),ok=0,tot=0;for(var j=testStart+ord;j<n;j++){var pp=markovPredict(chain,seq.slice(j-ord,j),ord);if(pp&&parseInt(pp.fruit)===seq[j])ok++;tot++;}var macc=tot>0?(ok/tot*100).toFixed(1):0;var nf=mp&&mp.total>0?NMAP[parseInt(mp.fruit)]:'—';markovRes.push({order:ord,acc:macc,next:nf,conf:mp?mp.conf:0,matches:mp?mp.total:0});rngLog('  Order '+ord+': '+macc+'% → '+nf);}
   allResults.sort(function(a,b){return parseFloat(b.acc)-parseFloat(a.acc);});
   var bm=markovRes.filter(function(r){return r.matches>0;}).sort(function(a,b){return parseFloat(b.acc)-parseFloat(a.acc);})[0];
   var br=allResults[0];
   var best=bm&&parseFloat(bm.acc)>parseFloat(br.acc)?{letter:bm.next,method:'Markov Order '+bm.order,acc:bm.acc}:{letter:br.next[0],method:br.name,acc:br.acc};
-
-  document.getElementById('rng-best').style.display='block';
-  document.getElementById('rng-best-letter').textContent=best.letter;
-  document.getElementById('rng-best-letter').style.color=FCOL[best.letter]||'#00e5ff';
-  document.getElementById('rng-best-method').textContent=best.method;
-  document.getElementById('rng-best-acc').textContent=best.acc+'%';
-  document.getElementById('rng-best-acc').style.color=parseFloat(best.acc)>25?'var(--green)':'var(--red)';
-
-  document.getElementById('rng-markov').style.display='block';
-  document.getElementById('rng-markov-content').innerHTML=markovRes.map(function(r){
-    return'<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);">'
-      +'<div><span style="font-size:11px;color:#00e5ff;">Order '+r.order+'</span><span style="font-size:10px;color:var(--muted);margin-left:8px;">'+r.matches+' matches</span></div>'
-      +'<div style="display:flex;align-items:center;gap:8px;">'
-      +'<span style="font-size:18px;font-weight:700;color:'+(FCOL[r.next]||'#e0e0e0')+'">'+r.next+'</span>'
-      +'<span style="font-size:11px;color:'+(r.conf>=50?'#00e676':'#ffb74d')+'">'+r.conf+'%</span>'
-      +'<span style="font-size:10px;color:'+(parseFloat(r.acc)>25?'#00e676':'#ef5350')+'">'+r.acc+'%</span>'
-      +'</div></div>';
-  }).join('');
-
-  document.getElementById('rng-algos').style.display='block';
-  document.getElementById('rng-algos-content').innerHTML=allResults.map(function(r,i){
-    return'<div style="padding:5px 0;border-bottom:1px solid var(--border);">'
-      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">'
-      +'<span style="font-size:11px;color:'+(i===0?'#00e5ff':'#e0e0e0')+'">'+r.name+'</span>'
-      +'<span style="font-size:13px;font-weight:700;color:'+(parseFloat(r.acc)>20?'#00e676':'#ef5350')+'">'+r.acc+'%</span></div>'
-      +'<div style="display:flex;gap:4px;">'+r.next.map(function(f){return'<span style="font-size:13px;font-weight:700;color:'+(FCOL[f]||'#e0e0e0')+';background:#0d0f14;padding:2px 6px;border-radius:4px;">'+f+'</span>';}).join('')+'</div></div>';
-  }).join('');
-
-  // Frequency analysis - find most common fruit and patterns today
-  var freqMap={T:0,K:0,O:0,L:0,C:0,S:0,G:0,W:0};
-  filled.forEach(function(r){if(freqMap[r.code]!==undefined)freqMap[r.code]++;});
-  var freqTotal=filled.length;
-  var freqSorted=Object.keys(freqMap).sort(function(a,b){return freqMap[b]-freqMap[a];});
-  rngLog('📈 Frequency today: '+freqSorted.map(function(f){return f+':'+(freqMap[f]/freqTotal*100).toFixed(0)+'%';}).join(' '));
-
-  // Hot/cold streaks
-  var last20=filled.slice(-20).map(function(r){return r.code;});
-  var hotMap={};last20.forEach(function(f){hotMap[f]=(hotMap[f]||0)+1;});
-  var hotSorted=Object.keys(hotMap).sort(function(a,b){return hotMap[b]-hotMap[a];});
-  rngLog('🔥 Last 20: '+hotSorted.slice(0,3).map(function(f){return f+':'+hotMap[f];}).join(' '));
-
-  // Entropy test
-  var entropy=calcEntropy(seq);
-  rngLog('🎲 Entropy: '+(entropy*100).toFixed(1)+'% '+(entropy>0.95?'(TRULY RANDOM - hard to predict)':entropy>0.85?'(mostly random)':'(PATTERN DETECTED!)'));
-
-  // Ensemble voting
-  var ensemble=ensembleVote(markovRes,allResults,filled);
-  rngLog('🗳️ ENSEMBLE VOTE: '+ensemble.fruit+' (combined signal)');
-
-  // Quick cracker - last 25 rounds only
-  var q25=filled.slice(-25);
-  if(q25.length>=10){
-    var q25seq=q25.map(function(r){return FMAP[r.code];});
-    var q25chain2=buildMarkov(q25seq,2),q25chain3=buildMarkov(q25seq,3);
-    var q25p2=markovPredict(q25chain2,q25seq.slice(-2),2);
-    var q25p3=markovPredict(q25chain3,q25seq.slice(-3),3);
-    var q25next2=q25p2&&q25p2.total>0?NMAP[parseInt(q25p2.fruit)]:'—';
-    var q25next3=q25p3&&q25p3.total>0?NMAP[parseInt(q25p3.fruit)]:'—';
-    rngLog('⚡ LAST 25 — 2-seq: '+q25next2+(q25p2?' ('+q25p2.conf+'%)':'') +' | 3-seq: '+q25next3+(q25p3?' ('+q25p3.conf+'%)':''));
-  }
-
-  rngProg(100);btn.disabled=false;btn.textContent='▶ RUN AGAIN';
-  rngLog('✅ Done!');
+  document.getElementById('rng-best').style.display='block';document.getElementById('rng-best-letter').textContent=best.letter;document.getElementById('rng-best-letter').style.color=FCOL[best.letter]||'#00e5ff';document.getElementById('rng-best-method').textContent=best.method;document.getElementById('rng-best-acc').textContent=best.acc+'%';document.getElementById('rng-best-acc').style.color=parseFloat(best.acc)>25?'var(--green)':'var(--red)';
+  document.getElementById('rng-markov').style.display='block';document.getElementById('rng-markov-content').innerHTML=markovRes.map(function(r){return'<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);"><div><span style="font-size:11px;color:#00e5ff;">Order '+r.order+'</span><span style="font-size:10px;color:var(--muted);margin-left:8px;">'+r.matches+' matches</span></div><div style="display:flex;align-items:center;gap:8px;"><span style="font-size:18px;font-weight:700;color:'+(FCOL[r.next]||'#e0e0e0')+'">'+r.next+'</span><span style="font-size:11px;color:'+(r.conf>=50?'#00e676':'#ffb74d')+'">'+r.conf+'%</span><span style="font-size:10px;color:'+(parseFloat(r.acc)>25?'#00e676':'#ef5350')+'">'+r.acc+'%</span></div></div>';}).join('');
+  document.getElementById('rng-algos').style.display='block';document.getElementById('rng-algos-content').innerHTML=allResults.map(function(r,i){return'<div style="padding:5px 0;border-bottom:1px solid var(--border);"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;"><span style="font-size:11px;color:'+(i===0?'#00e5ff':'#e0e0e0')+'">'+r.name+'</span><span style="font-size:13px;font-weight:700;color:'+(parseFloat(r.acc)>20?'#00e676':'#ef5350')+'">'+r.acc+'%</span></div><div style="display:flex;gap:4px;">'+r.next.map(function(f){return'<span style="font-size:13px;font-weight:700;color:'+(FCOL[f]||'#e0e0e0')+';background:#0d0f14;padding:2px 6px;border-radius:4px;">'+f+'</span>';}).join('')+'</div></div>';}).join('');
+  var freqMap={T:0,K:0,O:0,L:0,C:0,S:0,G:0,W:0};filled.forEach(function(r){if(freqMap[r.code]!==undefined)freqMap[r.code]++;});var freqTotal=filled.length;var freqSorted=Object.keys(freqMap).sort(function(a,b){return freqMap[b]-freqMap[a];});rngLog('📈 Frequency today: '+freqSorted.map(function(f){return f+':'+(freqMap[f]/freqTotal*100).toFixed(0)+'%';}).join(' '));
+  var last20=filled.slice(-20).map(function(r){return r.code;});var hotMap={};last20.forEach(function(f){hotMap[f]=(hotMap[f]||0)+1;});var hotSorted=Object.keys(hotMap).sort(function(a,b){return hotMap[b]-hotMap[a];});rngLog('🔥 Last 20: '+hotSorted.slice(0,3).map(function(f){return f+':'+hotMap[f];}).join(' '));
+  var entropy=calcEntropy(seq);rngLog('🎲 Entropy: '+(entropy*100).toFixed(1)+'% '+(entropy>0.95?'(TRULY RANDOM)':entropy>0.85?'(mostly random)':'(PATTERN DETECTED!)'));
+  var ensemble=ensembleVote(markovRes,allResults,filled);rngLog('🗳️ ENSEMBLE: '+ensemble.fruit);
+  var q25=filled.slice(-25);if(q25.length>=10){var q25seq=q25.map(function(r){return FMAP[r.code];});var q25chain2=buildMarkov(q25seq,2),q25chain3=buildMarkov(q25seq,3);var q25p2=markovPredict(q25chain2,q25seq.slice(-2),2);var q25p3=markovPredict(q25chain3,q25seq.slice(-3),3);var q25next2=q25p2&&q25p2.total>0?NMAP[parseInt(q25p2.fruit)]:'—';var q25next3=q25p3&&q25p3.total>0?NMAP[parseInt(q25p3.fruit)]:'—';rngLog('⚡ LAST 25 — 2-seq:'+q25next2+(q25p2?' ('+q25p2.conf+'%)':'')+' | 3-seq:'+q25next3+(q25p3?' ('+q25p3.conf+'%)':''));}
+  rngProg(100);btn.disabled=false;btn.textContent='▶ RUN AGAIN';rngLog('✅ Done!');
 }
 
-// ── RNG2 (LAST 25) ──
 function rngLog2(m){var el=document.getElementById('rng-log2');if(el){el.innerHTML=(el.innerHTML?el.innerHTML+'<br>':'')+m;document.getElementById('rng-log-box2').style.display='block';}}
 function rngProg2(p){document.getElementById('rng-prog-wrap2').style.display='block';document.getElementById('rng-prog-bar2').style.width=p+'%';}
-
 async function runRNG2(){
-  var btn=document.getElementById('rng-run-btn2');
-  btn.disabled=true;btn.textContent='Running...';
-  document.getElementById('rng-log2').innerHTML='';
-  document.getElementById('rng-log-box2').style.display='none';
-  document.getElementById('rng-best2').style.display='none';
-  document.getElementById('rng-markov2').style.display='none';
-  rngProg2(10);
-
-  var filled=getFilledRounds().slice(-25);
-  rngLog2('⚡ Using last '+filled.length+' rounds');
-  if(filled.length<10){rngLog2('❌ Need 10+ rounds');btn.disabled=false;btn.textContent='▶ RUN LAST 25';return;}
-
-  var seq=filled.map(function(r){return FMAP[r.code];});
-  var n=seq.length;
-  var markovRes=[];
-  rngProg2(30);
-  for(var ord=2;ord<=4;ord++){
-    var chain=buildMarkov(seq,ord);
-    var mp=markovPredict(chain,seq.slice(-ord),ord);
-    var nf=mp&&mp.total>0?NMAP[parseInt(mp.fruit)]:'—';
-    markovRes.push({order:ord,acc:0,next:nf,conf:mp?mp.conf:0,matches:mp?mp.total:0});
-    rngLog2('Order '+ord+': '+nf+(mp?' ('+mp.conf+'% from '+mp.total+' matches)':''));
-    await sleep(10);
-  }
+  var btn=document.getElementById('rng-run-btn2');btn.disabled=true;btn.textContent='Running...';
+  document.getElementById('rng-log2').innerHTML='';document.getElementById('rng-log-box2').style.display='none';document.getElementById('rng-best2').style.display='none';document.getElementById('rng-markov2').style.display='none';rngProg2(10);
+  var filled=getFilledRounds().slice(-25);rngLog2('⚡ Using last '+filled.length+' rounds');if(filled.length<10){rngLog2('❌ Need 10+');btn.disabled=false;btn.textContent='▶ RUN LAST 25';return;}
+  var seq=filled.map(function(r){return FMAP[r.code];}),n=seq.length,markovRes=[];rngProg2(30);
+  for(var ord=2;ord<=4;ord++){var chain=buildMarkov(seq,ord);var mp=markovPredict(chain,seq.slice(-ord),ord);var nf=mp&&mp.total>0?NMAP[parseInt(mp.fruit)]:'—';markovRes.push({order:ord,acc:0,next:nf,conf:mp?mp.conf:0,matches:mp?mp.total:0});rngLog2('Order '+ord+': '+nf+(mp?' ('+mp.conf+'% / '+mp.total+' matches)':''));await sleep(10);}
   rngProg2(80);
-
-  // Find best with matches
   var bm=markovRes.filter(function(r){return r.matches>0;}).sort(function(a,b){return parseFloat(b.conf)-parseFloat(a.conf);})[0];
-  
-  if(bm){
-    document.getElementById('rng-best2').style.display='block';
-    document.getElementById('rng-best-letter2').textContent=bm.next;
-    document.getElementById('rng-best-letter2').style.color=FCOL[bm.next]||'#ffb74d';
-    document.getElementById('rng-best-method2').textContent='Markov Order '+bm.order;
-    document.getElementById('rng-best-acc2').textContent=bm.conf+'%';
-    document.getElementById('rng-best-acc2').style.color=parseFloat(bm.conf)>50?'var(--green)':'var(--orange)';
-  }
-
-  document.getElementById('rng-markov2').style.display='block';
-  document.getElementById('rng-markov-content2').innerHTML=markovRes.map(function(r){
-    return'<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);">'
-      +'<div><span style="font-size:11px;color:#ffb74d;">Order '+r.order+'</span><span style="font-size:10px;color:var(--muted);margin-left:8px;">'+r.matches+' matches</span></div>'
-      +'<div style="display:flex;align-items:center;gap:8px;">'
-      +'<span style="font-size:18px;font-weight:700;color:'+(FCOL[r.next]||'#e0e0e0')+'">'+r.next+'</span>'
-      +'<span style="font-size:11px;color:'+(r.conf>=50?'#00e676':'#ffb74d')+'">'+r.conf+'%</span>'
-      +'</div></div>';
-  }).join('');
-
+  if(bm){document.getElementById('rng-best2').style.display='block';document.getElementById('rng-best-letter2').textContent=bm.next;document.getElementById('rng-best-letter2').style.color=FCOL[bm.next]||'#ffb74d';document.getElementById('rng-best-method2').textContent='Markov Order '+bm.order;document.getElementById('rng-best-acc2').textContent=bm.conf+'%';document.getElementById('rng-best-acc2').style.color=parseFloat(bm.conf)>50?'var(--green)':'var(--orange)';}
+  document.getElementById('rng-markov2').style.display='block';document.getElementById('rng-markov-content2').innerHTML=markovRes.map(function(r){return'<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);"><div><span style="font-size:11px;color:#ffb74d;">Order '+r.order+'</span><span style="font-size:10px;color:var(--muted);margin-left:8px;">'+r.matches+' matches</span></div><div style="display:flex;align-items:center;gap:8px;"><span style="font-size:18px;font-weight:700;color:'+(FCOL[r.next]||'#e0e0e0')+'">'+r.next+'</span><span style="font-size:11px;color:'+(r.conf>=50?'#00e676':'#ffb74d')+'">'+r.conf+'%</span></div></div>';}).join('');
   rngProg2(100);btn.disabled=false;btn.textContent='▶ RUN LAST 25';
 }
 
 // ── RESTORE SESSION ──
 window.addEventListener('load',function(){
   var s=localStorage.getItem('rt_session');
-  if(s){try{
-    var o=JSON.parse(s);tok=o.tok;uid=o.uid;if(o.refresh)refreshTok=o.refresh;
-    initApp();
-  }catch(e){localStorage.removeItem('rt_session');}}
+  if(s){try{var o=JSON.parse(s);tok=o.tok;uid=o.uid;if(o.refresh)refreshTok=o.refresh;initApp();}catch(e){localStorage.removeItem('rt_session');}}
 });
 </script>
 </body>
