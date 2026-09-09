@@ -143,8 +143,13 @@ body{background:var(--bg);color:var(--text);font-family:Arial,sans-serif;font-si
 .game-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin:6px 0;}
 .gg-cell{background:#0d0f14;border:1px solid #333;border-radius:5px;padding:6px 4px;text-align:center;font-size:11px;font-weight:700;}
 .gg-cell .pct{font-size:9px;font-weight:400;color:var(--muted);display:block;}
-.gg-cell.hot{border-color:#ffd600;background:rgba(255,214,0,.08);}
-.gg-cell.cold{border-color:#333;opacity:.6;}
+.gg-cell.hot{border-color:#00e676;background:rgba(0,230,118,.10);}
+.gg-cell.cold{border-color:#ef535066;background:rgba(239,83,80,.06);opacity:.75;}
+.sb-list{display:flex;flex-direction:column;gap:3px;}
+.sb-row{display:flex;align-items:center;gap:6px;font-size:11px;}
+.sb-bar{flex:1;height:7px;background:#0d0f14;border-radius:4px;overflow:hidden;}
+.sb-bar i{display:block;height:100%;border-radius:4px;}
+.acc-row{display:flex;align-items:center;gap:6px;font-size:11px;padding:5px 0;border-bottom:1px solid var(--border);}
 </style>
 </head>
 <body>
@@ -164,6 +169,7 @@ body{background:var(--bg);color:var(--text);font-family:Arial,sans-serif;font-si
   <div class="hdr">
     <h1>ROUND TRACKER <span style="font-size:9px;color:var(--muted);font-weight:400;">v3.0</span></h1>
     <div class="hdr-btns">
+      <span class="hbtn" id="role-badge" style="font-weight:700;letter-spacing:1px;">—</span>
       <button class="hbtn" id="refresh-btn" onclick="loadRounds()">↺ REFRESH</button>
       <button class="hbtn" onclick="doLogout()">LOGOUT</button>
     </div>
@@ -199,7 +205,7 @@ body{background:var(--bg);color:var(--text);font-family:Arial,sans-serif;font-si
     <div class="cbox" id="bw"><div class="clbl">SINCE W ~40</div><div class="cval" id="cw">—</div></div>
   </div>
 
-  <div class="isec">
+  <div class="isec" id="entry-section">
     <div class="ilbl">TAP RESULT</div>
     <div class="rrow">
       <span class="rlbl">ROUND #</span>
@@ -260,6 +266,27 @@ body{background:var(--bg);color:var(--text);font-family:Arial,sans-serif;font-si
       <div class="p25-sub">🎯 NEXT PREDICTION (last 25 Markov)</div>
       <div class="p25-predict" id="p25-predict">—</div>
     </div>
+  </div>
+
+  <!-- ── SESSION BIAS DETECTOR ── -->
+  <div class="p25" style="border-color:#00e67644;">
+    <div class="p25-title" style="color:#00e676;">
+      <span>🧭 SESSION BIAS</span>
+      <button class="p25-toggle" id="sb-toggle" style="border-color:#00e676;color:#00e676;" onclick="toggleSB()">HIDE</button>
+    </div>
+    <div id="sb-body"></div>
+  </div>
+
+  <!-- ── PREDICTION ACCURACY TRACKER ── -->
+  <div class="p25" style="border-color:#ce93d844;">
+    <div class="p25-title" style="color:#ce93d8;">
+      <span>🎯 PREDICTION ACCURACY</span>
+      <span>
+        <button class="p25-toggle" style="border-color:#ef5350;color:#ef5350;margin-right:4px;" onclick="resetScores()">RESET</button>
+        <button class="p25-toggle" id="acc-toggle" style="border-color:#ce93d8;color:#ce93d8;" onclick="toggleAcc()">HIDE</button>
+      </span>
+    </div>
+    <div id="acc-body"></div>
   </div>
 
   <div style="display:flex;gap:6px;margin-bottom:8px;">
@@ -357,7 +384,19 @@ body{background:var(--bg);color:var(--text);font-family:Arial,sans-serif;font-si
 <script>
 var SB_URL='https://hyfiqhjjhbarijbodupa.supabase.co';
 var SB_KEY='sb_publishable_mf1dNfI_2D_hojbW95wZBA_73YF50u3';
-var tok=null,uid=null,refreshTok=null;
+var tok=null,uid=null,refreshTok=null,userEmail='';
+
+// ═══════════ ACCESS CONTROL ═══════════
+// Only these emails can enter/edit/delete rounds. Everyone else
+// signs in and gets a read-only view. Put your own email here —
+// it must match EXACTLY the email used to sign in (lowercase).
+// This is also enforced in Supabase via RLS (see setup SQL).
+var ADMIN_EMAILS=['nkm@example.com'];
+var isAdmin=false;
+function computeRole(){
+  isAdmin=ADMIN_EMAILS.indexOf((userEmail||'').trim().toLowerCase())>=0;
+  return isAdmin;
+}
 var rounds=[];
 var curDate='';
 var enterDir=1;
@@ -388,7 +427,7 @@ function signIn(){
   fetch(SB_URL+'/auth/v1/token?grant_type=password',{method:'POST',headers:{'Content-Type':'application/json','apikey':SB_KEY},body:JSON.stringify({email:em,password:pw})})
   .then(function(r){return r.json();}).then(function(d){
     b.textContent='SIGN IN';b.disabled=false;
-    if(d.access_token){tok=d.access_token;uid=d.user.id;if(d.refresh_token)refreshTok=d.refresh_token;saveSession();initApp();}
+    if(d.access_token){tok=d.access_token;uid=d.user.id;userEmail=(d.user.email||'').toLowerCase();if(d.refresh_token)refreshTok=d.refresh_token;saveSession();initApp();}
     else amsg(d.error_description||d.error||'Login failed','err');
   }).catch(function(e){b.textContent='SIGN IN';b.disabled=false;amsg(''+e,'err');});
 }
@@ -397,12 +436,12 @@ function signUp(){
   if(!em||!pw){amsg('Enter email and password','err');return;}
   fetch(SB_URL+'/auth/v1/signup',{method:'POST',headers:{'Content-Type':'application/json','apikey':SB_KEY},body:JSON.stringify({email:em,password:pw})})
   .then(function(r){return r.json();}).then(function(d){
-    if(d.access_token){tok=d.access_token;uid=d.user.id;if(d.refresh_token)refreshTok=d.refresh_token;saveSession();initApp();}
+    if(d.access_token){tok=d.access_token;uid=d.user.id;userEmail=(d.user.email||'').toLowerCase();if(d.refresh_token)refreshTok=d.refresh_token;saveSession();initApp();}
     else amsg(d.error_description||d.error||'Check email for confirmation','ok');
   });
 }
-function saveSession(){localStorage.setItem('rt_session',JSON.stringify({tok:tok,uid:uid,refresh:refreshTok}));}
-function doLogout(){tok=null;uid=null;rounds=[];localStorage.removeItem('rt_session');document.getElementById('app').style.display='none';document.getElementById('auth').style.display='flex';}
+function saveSession(){localStorage.setItem('rt_session',JSON.stringify({tok:tok,uid:uid,email:userEmail,refresh:refreshTok}));}
+function doLogout(){tok=null;uid=null;userEmail='';isAdmin=false;rounds=[];localStorage.removeItem('rt_session');document.getElementById('app').style.display='none';document.getElementById('auth').style.display='flex';}
 async function refreshToken(){
   var s=localStorage.getItem('rt_session');if(!s)return false;
   try{var o=JSON.parse(s);if(!o.refresh)return false;
@@ -416,12 +455,28 @@ async function refreshToken(){
 function initApp(){
   document.getElementById('auth').style.display='none';
   document.getElementById('app').style.display='flex';
+  computeRole();
+  applyRole();
   var savedDir=localStorage.getItem('rt_dir');
   var savedRnum=localStorage.getItem('rt_rnum');
   if(savedDir)setDir(parseInt(savedDir));
   if(savedRnum)document.getElementById('rnum').value=savedRnum;
   setToday();
 }
+// Show/hide everything that writes. Read-only users keep all the
+// analysis panels — they just can't change the data.
+function applyRole(){
+  var entry=document.getElementById('entry-section');
+  var badge=document.getElementById('role-badge');
+  if(isAdmin){
+    if(entry)entry.style.display='block';
+    if(badge){badge.textContent='EDITOR';badge.style.color='#00e676';badge.style.borderColor='#00e676';badge.title=userEmail;}
+  }else{
+    if(entry)entry.style.display='none';
+    if(badge){badge.textContent='VIEW ONLY';badge.style.color='#ffb74d';badge.style.borderColor='#ffb74d';badge.title=userEmail+' — read access';}
+  }
+}
+function denyWrite(){toast('View only — you cannot change rounds');return false;}
 function setToday(){curDate=todayUAE();document.getElementById('seldate').value=curDate;loadRounds();}
 function onDateChange(){curDate=document.getElementById('seldate').value;loadRounds();}
 function shiftDate(days){
@@ -459,6 +514,7 @@ function loadRounds(){
 
 // ── ENTER — first recorder wins, others get confirm prompt ──
 function enter(code){
+  if(!isAdmin)return denyWrite();
   var rnum=parseInt(document.getElementById('rnum').value)||1;
   var existing=rounds.find(function(r){return r.round_number===rnum;});
   if(existing&&existing.code&&existing.code!==''){
@@ -474,6 +530,7 @@ function enter(code){
     document.getElementById('ss').textContent='';
     if(Array.isArray(d)&&d[0]){
       rounds.push(d[0]);rounds.sort(function(a,b){return a.round_number-b.round_number;});
+      gradeRound(rnum,code);
       advance(rnum);ui();
     }else if(d&&d.code==='23505'){
       toast('Round #'+rnum+' already exists — refresh to see');loadRounds();
@@ -484,11 +541,13 @@ function advance(rnum){var v=enterDir===1?Math.min(2600,rnum+1):Math.max(1,rnum-
 
 // ── CLR / EDIT ──
 function clrRound(id){
+  if(!isAdmin)return denyWrite();
   if(!confirm('Delete this round?'))return;
   fetch(SB_URL+'/rest/v1/rounds?id=eq.'+id,{method:'DELETE',headers:{'apikey':SB_KEY,'Authorization':'Bearer '+tok}})
   .then(function(){rounds=rounds.filter(function(r){return r.id!==id;});ui();toast('Deleted');});
 }
 function openEdit(id){
+  if(!isAdmin)return denyWrite();
   var r=rounds.find(function(x){return x.id===id;});if(!r)return;
   editingId=id;editingCode=r.code;
   document.getElementById('medit-rnum').value=r.round_number;
@@ -498,6 +557,7 @@ function openEdit(id){
 function selCode(c){editingCode=c;document.querySelectorAll('.mfb').forEach(function(b){b.classList.toggle('sel',b.textContent===c);});}
 function closeModal(){document.getElementById('modal').style.display='none';}
 function saveEdit(){
+  if(!isAdmin)return denyWrite();
   if(!editingId||!editingCode)return;
   var rnum=parseInt(document.getElementById('medit-rnum').value)||1;
   fetch(SB_URL+'/rest/v1/rounds?id=eq.'+editingId,{method:'PATCH',headers:{'Content-Type':'application/json','apikey':SB_KEY,'Authorization':'Bearer '+tok,'Prefer':'return=representation'},body:JSON.stringify({round_number:rnum,code:editingCode})})
@@ -595,17 +655,30 @@ function renderLast25(filled){
     coldEl.innerHTML+='<div style="color:#ef5350;font-size:10px;margin-top:4px;">Not seen: '+missing.map(function(f){return FEMOJI[f];}).join(' ')+'</div>';
   }
 
-  // 4. Grid heat map
+  // 4. Grid heat map — DEVIATION from each fruit's own baseline
+  // (raw counts always highlighted T/K/O/L because they are simply
+  //  weighted higher; what matters is running ABOVE its own normal rate)
   var gridEl=document.getElementById('p25-grid');
   var total25=last25.length;
+  var base=getBaseline();
   gridEl.innerHTML=GRID_LAYOUT.map(function(f){
     if(!f)return '<div class="gg-cell" style="background:#0a0c10;border:none;"></div>';
     var cnt=freq[f]||0;
-    var pct=Math.round(cnt/total25*100);
-    var isHot=sorted.indexOf(f)<=1&&cnt>=3;
-    var isCold=cnt<=1;
-    return '<div class="gg-cell'+(isHot?' hot':isCold?' cold':'')+'" style="color:'+FCOL[f]+'">'
-      +FEMOJI[f]+' '+f+'<span class="pct">'+cnt+'x / '+pct+'%</span></div>';
+    var actual=cnt/total25*100;
+    var expected=base[f];
+    var expCnt=expected/100*total25;
+    var dev=actual-expected;
+    // relative deviation — how far off its own normal rate
+    var rel=expected>0?dev/expected:0;
+    var cls='',arrow='',acol='var(--muted)';
+    if(rel>=0.45&&cnt>=2){cls=' hot';arrow='▲';acol='#00e676';}
+    else if(rel<=-0.5){cls=' cold';arrow='▼';acol='#ef5350';}
+    else {arrow='=';acol='var(--muted)';}
+    return '<div class="gg-cell'+cls+'" style="color:'+FCOL[f]+'">'
+      +FEMOJI[f]+' '+f
+      +'<span class="pct">'+cnt+'x vs '+expCnt.toFixed(1)+'exp</span>'
+      +'<span class="pct" style="color:'+acol+';font-weight:700;">'+arrow+' '+(dev>0?'+':'')+dev.toFixed(0)+'%</span>'
+      +'</div>';
   }).join('');
 
   // 5. Cluster pattern
@@ -658,6 +731,220 @@ function hexToRgb(hex){
   return r+','+g+','+b;
 }
 
+// ═══════════ BASELINE ═══════════
+// Long-run hit rate per fruit, measured from 432 recorded rounds.
+// If the currently loaded day has 60+ rounds we use that day instead,
+// so the baseline adapts if the game's weighting ever changes.
+var BASELINE_DEFAULT={T:20.6,L:18.8,O:18.1,K:17.8,C:9.0,S:7.2,G:5.6,W:3.0};
+function getBaseline(){
+  var f=getFilledRounds();
+  if(f.length<60)return BASELINE_DEFAULT;
+  var c={T:0,K:0,O:0,L:0,C:0,S:0,G:0,W:0},n=f.length;
+  f.forEach(function(r){if(c[r.code]!==undefined)c[r.code]++;});
+  var out={};
+  for(var k in c)out[k]=c[k]/n*100;
+  return out;
+}
+
+// ═══════════ SESSION BIAS DETECTOR ═══════════
+// Is any fruit running meaningfully hot/cold THIS session vs its own
+// normal rate? Uses a normal approximation so small samples don't
+// trigger false alarms.
+function renderSessionBias(){
+  var el=document.getElementById('sb-body');
+  if(!el)return;
+  var f=getFilledRounds(),n=f.length;
+  if(n<15){
+    el.innerHTML='<div style="color:var(--muted);font-size:11px;">Need 15+ rounds this session (have '+n+')</div>';
+    return;
+  }
+  var base=BASELINE_DEFAULT; // compare session against long-run, not itself
+  var cnt={T:0,K:0,O:0,L:0,C:0,S:0,G:0,W:0};
+  f.forEach(function(r){if(cnt[r.code]!==undefined)cnt[r.code]++;});
+  var rows=[];
+  for(var k in cnt){
+    var p=base[k]/100;
+    var expected=p*n;
+    var sd=Math.sqrt(n*p*(1-p));
+    var z=sd>0?(cnt[k]-expected)/sd:0;
+    rows.push({f:k,cnt:cnt[k],exp:expected,z:z});
+  }
+  rows.sort(function(a,b){return b.z-a.z;});
+
+  var hot=rows[0],cold=rows[rows.length-1];
+  var html='';
+  html+='<div style="font-size:11px;color:var(--muted);margin-bottom:6px;">Session: '+n+' rounds · compared to long-run rates</div>';
+  html+='<div class="sb-list">'+rows.map(function(r){
+    var col=r.z>=1.5?'#00e676':r.z<=-1.5?'#ef5350':'var(--muted)';
+    var lbl=r.z>=1.5?'HOT':r.z<=-1.5?'COLD':'normal';
+    var barW=Math.max(2,Math.min(100,(r.cnt/Math.max(1,rows[0].cnt))*100));
+    return '<div class="sb-row">'
+      +'<span style="width:42px;color:'+FCOL[r.f]+';font-weight:700;">'+FEMOJI[r.f]+' '+r.f+'</span>'
+      +'<span style="width:58px;font-size:10px;color:var(--muted);">'+r.cnt+' / '+r.exp.toFixed(1)+'</span>'
+      +'<span class="sb-bar"><i style="width:'+barW+'%;background:'+FCOL[r.f]+'"></i></span>'
+      +'<span style="width:56px;text-align:right;font-size:10px;color:'+col+';font-weight:700;">'+lbl+' '+(r.z>0?'+':'')+r.z.toFixed(1)+'σ</span>'
+      +'</div>';
+  }).join('')+'</div>';
+
+  var verdict='';
+  if(hot.z>=2)      verdict='<span style="color:#00e676">🔥 '+FEMOJI[hot.f]+' '+FNAME[hot.f]+' is running well above its normal rate this session.</span>';
+  else if(hot.z>=1.5) verdict='<span style="color:#ffd600">'+FEMOJI[hot.f]+' '+FNAME[hot.f]+' is mildly hot — not yet conclusive.</span>';
+  else              verdict='<span style="color:var(--muted)">No fruit is meaningfully off its normal rate. Session looks like standard weighting.</span>';
+  if(cold.z<=-2) verdict+='<br><span style="color:#ef5350">❄️ '+FEMOJI[cold.f]+' '+FNAME[cold.f]+' is well below normal ('+cold.cnt+' vs '+cold.exp.toFixed(1)+' expected).</span>';
+  html+='<div style="margin-top:8px;font-size:11px;line-height:1.6;">'+verdict+'</div>';
+  html+='<div style="margin-top:6px;font-size:9px;color:var(--muted);">σ = standard deviations from expected. ±1.5σ is noise territory; ±2σ starts to mean something.</div>';
+  el.innerHTML=html;
+}
+
+// ═══════════ PREDICTION ACCURACY TRACKER ═══════════
+// Every time the app shows predictions it stashes them against the
+// round they refer to. When that round is actually entered, each
+// method gets graded. Random baseline is 12.5% (1 in 8).
+var METHODS={
+  main:{label:'Pattern (3-seq)',col:'#00e5ff'},
+  l25 :{label:'Markov last 25',col:'#ffb74d'},
+  bias:{label:'Session hot fruit',col:'#00e676'},
+  anti:{label:'Anti-streak',col:'#ce93d8'},
+  freq:{label:'Most frequent',col:'#e53935'}
+};
+function loadStash(){try{return JSON.parse(localStorage.getItem('rt_predlog')||'{}');}catch(e){return {};}}
+function saveStash(o){localStorage.setItem('rt_predlog',JSON.stringify(o));}
+function loadScores(){
+  try{var s=JSON.parse(localStorage.getItem('rt_scores')||'{}');
+    for(var k in METHODS)if(!s[k])s[k]={h:0,m:0};
+    return s;
+  }catch(e){var d={};for(var k in METHODS)d[k]={h:0,m:0};return d;}
+}
+function saveScores(o){localStorage.setItem('rt_scores',JSON.stringify(o));}
+
+function currentPredictions(){
+  var f=getFilledRounds();
+  if(f.length<5)return null;
+  var codes=f.map(function(r){return r.code;}),n=codes.length;
+  var p={};
+
+  // main — existing 3-sequence pattern predictor
+  var mp=predict();
+  p.main=(mp.t&&mp.t!=='—')?mp.t:null;
+
+  // l25 — markov on last 25
+  var last25=codes.slice(-25);
+  var c2=buildMarkovSimple(last25,2),c3=buildMarkovSimple(last25,3);
+  var m3=markovNext(c3,last25,3),m2=markovNext(c2,last25,2);
+  var bestM=(m3&&m3.matches>=2)?m3:(m2&&m2.matches>=2)?m2:(m2||m3);
+  p.l25=bestM?bestM.fruit:null;
+
+  // bias — hottest fruit this session vs baseline
+  var cnt={T:0,K:0,O:0,L:0,C:0,S:0,G:0,W:0};
+  f.forEach(function(r){if(cnt[r.code]!==undefined)cnt[r.code]++;});
+  var bz=null,bf=null;
+  for(var k in cnt){
+    var pp=BASELINE_DEFAULT[k]/100,ex=pp*n,sd=Math.sqrt(n*pp*(1-pp));
+    var z=sd>0?(cnt[k]-ex)/sd:0;
+    if(bz===null||z>bz){bz=z;bf=k;}
+  }
+  p.bias=bf;
+
+  // anti — if last fruit repeated, bet the top-rate fruit that isn't it
+  var lastF=codes[n-1],rep=1;
+  while(rep<n&&codes[n-1-rep]===lastF)rep++;
+  var order=['T','L','O','K','C','S','G','W'];
+  p.anti=(rep>=2)?order.filter(function(x){return x!==lastF;})[0]:lastF;
+
+  // freq — simply the highest-baseline fruit
+  p.freq='T';
+
+  return p;
+}
+
+function stashPredictions(){
+  var p=currentPredictions();
+  if(!p)return;
+  var f=getFilledRounds();
+  if(!f.length)return;
+  var nextRound=f[f.length-1].round_number+(enterDir===1?1:-1);
+  var st=loadStash();
+  var key=curDate+'#'+nextRound;
+  if(!st[key]){st[key]=p;
+    // keep the stash small
+    var keys=Object.keys(st);
+    if(keys.length>400)keys.slice(0,keys.length-400).forEach(function(k){delete st[k];});
+    saveStash(st);
+  }
+}
+
+function gradeRound(roundNum,actual){
+  var st=loadStash(),key=curDate+'#'+roundNum;
+  var p=st[key];
+  if(!p)return;
+  var sc=loadScores(),graded=[];
+  for(var m in METHODS){
+    if(!p[m])continue;
+    if(p[m]===actual){sc[m].h++;graded.push(METHODS[m].label+' ✓');}
+    else sc[m].m++;
+  }
+  saveScores(sc);
+  delete st[key];saveStash(st);
+  if(graded.length)toast('Hit: '+graded.join(', '));
+  renderAccuracy();
+}
+
+function renderAccuracy(){
+  var el=document.getElementById('acc-body');
+  if(!el)return;
+  var sc=loadScores();
+  var rows=[];
+  for(var m in METHODS){
+    var h=sc[m].h,ms=sc[m].m,t=h+ms;
+    rows.push({m:m,label:METHODS[m].label,col:METHODS[m].col,h:h,miss:ms,t:t,acc:t>0?h/t*100:null});
+  }
+  rows.sort(function(a,b){return (b.acc===null?-1:b.acc)-(a.acc===null?-1:a.acc);});
+  var totalGraded=rows.reduce(function(a,b){return a+b.t;},0);
+  if(totalGraded===0){
+    el.innerHTML='<div style="color:var(--muted);font-size:11px;">No graded rounds yet. Predictions are stored automatically — enter the next round result and it will be scored here.</div>';
+    return;
+  }
+  var html='<div style="font-size:10px;color:var(--muted);margin-bottom:6px;">Random guessing = 12.5%. Anything not clearly above that is not working.</div>';
+  html+=rows.map(function(r){
+    if(r.t===0)return '<div class="acc-row"><span style="color:'+r.col+'">'+r.label+'</span><span style="color:var(--muted);font-size:10px;">no data</span></div>';
+    var good=r.acc>15,bad=r.acc<12.5;
+    var col=good?'#00e676':bad?'#ef5350':'#ffb74d';
+    return '<div class="acc-row">'
+      +'<span style="color:'+r.col+';flex:1;">'+r.label+'</span>'
+      +'<span style="font-size:10px;color:var(--muted);width:62px;text-align:right;">'+r.h+'/'+r.t+'</span>'
+      +'<span style="width:52px;text-align:right;font-weight:700;color:'+col+';">'+r.acc.toFixed(1)+'%</span>'
+      +'</div>';
+  }).join('');
+  var best=rows.filter(function(r){return r.t>=20;})[0];
+  if(best){
+    if(best.acc>16) html+='<div style="margin-top:8px;font-size:11px;color:#00e676;">Best so far: '+best.label+' at '+best.acc.toFixed(1)+'% over '+best.t+' rounds.</div>';
+    else html+='<div style="margin-top:8px;font-size:11px;color:#ef5350;">Nothing is beating random yet. Best is '+best.label+' at '+best.acc.toFixed(1)+'% over '+best.t+' rounds — that is within noise of 12.5%.</div>';
+  } else {
+    html+='<div style="margin-top:8px;font-size:10px;color:var(--muted);">Need 20+ graded rounds per method before the numbers mean anything.</div>';
+  }
+  html+='<div style="margin-top:8px;font-size:10px;color:var(--muted);">Graded rounds: '+totalGraded+'</div>';
+  el.innerHTML=html;
+}
+function resetScores(){
+  if(!confirm('Reset all prediction accuracy scores?'))return;
+  localStorage.removeItem('rt_scores');
+  localStorage.removeItem('rt_predlog');
+  renderAccuracy();
+  toast('Scores reset');
+}
+function toggleAcc(){
+  var b=document.getElementById('acc-body');
+  var shown=b.style.display!=='none';
+  b.style.display=shown?'none':'block';
+  document.getElementById('acc-toggle').textContent=shown?'SHOW':'HIDE';
+}
+function toggleSB(){
+  var b=document.getElementById('sb-body');
+  var shown=b.style.display!=='none';
+  b.style.display=shown?'none':'block';
+  document.getElementById('sb-toggle').textContent=shown?'SHOW':'HIDE';
+}
+
 // ── UI ──
 function ui(){
   var p=predict();
@@ -693,6 +980,10 @@ function ui(){
 
   // Last 25 panel
   renderLast25(getFilledRounds());
+  // Session bias + accuracy scoreboard
+  renderSessionBias();
+  renderAccuracy();
+  stashPredictions();
 
   var dateRounds=rounds.filter(function(r){return r.code&&r.code!=='';}).slice().reverse();
   var hl=document.getElementById('hl');
@@ -700,7 +991,8 @@ function ui(){
   hl.innerHTML=dateRounds.map(function(r){
     var sp=['G','W','S','C'].indexOf(r.code)>=0?'i'+r.code.toLowerCase():'';
     var cc=['G','W','S','C'].indexOf(r.code)>=0?r.code:'';
-    return'<div class="hi '+sp+'"><span class="hr">#'+r.round_number+'</span><span class="ht">'+(r.play_time?r.play_time.substring(0,5):'')+'</span><span class="hc '+cc+'">'+r.code+'</span><button class="hedit" onclick="openEdit(\''+r.id+'\')" style="margin-left:auto;">EDIT</button><button class="hclr" onclick="clrRound(\''+r.id+'\')">CLR</button></div>';
+    var btns=isAdmin?('<button class="hedit" onclick="openEdit(\''+r.id+'\')" style="margin-left:auto;">EDIT</button><button class="hclr" onclick="clrRound(\''+r.id+'\')">CLR</button>'):'<span style="margin-left:auto;"></span>';
+    return'<div class="hi '+sp+'"><span class="hr">#'+r.round_number+'</span><span class="ht">'+(r.play_time?r.play_time.substring(0,5):'')+'</span><span class="hc '+cc+'">'+r.code+'</span>'+btns+'</div>';
   }).join('');
 }
 
@@ -793,7 +1085,7 @@ async function runRNG2(){
 // ── RESTORE SESSION ──
 window.addEventListener('load',function(){
   var s=localStorage.getItem('rt_session');
-  if(s){try{var o=JSON.parse(s);tok=o.tok;uid=o.uid;if(o.refresh)refreshTok=o.refresh;initApp();}catch(e){localStorage.removeItem('rt_session');}}
+  if(s){try{var o=JSON.parse(s);tok=o.tok;uid=o.uid;userEmail=(o.email||'').toLowerCase();if(o.refresh)refreshTok=o.refresh;initApp();}catch(e){localStorage.removeItem('rt_session');}}
 });
 </script>
 </body>
