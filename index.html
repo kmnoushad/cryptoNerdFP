@@ -145,6 +145,8 @@ body{background:var(--bg);color:var(--text);font-family:Arial,sans-serif;font-si
 .gg-cell .pct{font-size:9px;font-weight:400;color:var(--muted);display:block;}
 .gg-cell.hot{border-color:#00e676;background:rgba(0,230,118,.10);}
 .gg-cell.cold{border-color:#ef535066;background:rgba(239,83,80,.06);opacity:.75;}
+.gg-cell.logo-cell{display:flex;align-items:center;justify-content:center;padding:4px;overflow:hidden;}
+.gg-center-name{font-size:8px;font-weight:900;letter-spacing:1px;line-height:1.25;text-align:center;color:var(--accent);text-shadow:0 0 8px rgba(0,229,255,.28);}
 .sb-list{display:flex;flex-direction:column;gap:3px;}
 .sb-row{display:flex;align-items:center;gap:6px;font-size:11px;}
 .sb-bar{flex:1;height:7px;background:#0d0f14;border-radius:4px;overflow:hidden;}
@@ -184,9 +186,7 @@ body{background:var(--bg);color:var(--text);font-family:Arial,sans-serif;font-si
 
   <div class="seq-alert" id="seq-alert" style="display:none;">
     <span class="seq-alert-title">▶ CURRENT SEQUENCE MATCH</span>
-    <div style="font-size:10px;color:var(--muted);margin-bottom:2px;">2-item:</div>
-    <div id="seq2"></div>
-    <div style="font-size:10px;color:var(--muted);margin:4px 0 2px;">3-item:</div>
+    <div style="font-size:10px;color:var(--muted);margin-bottom:2px;">3-item:</div>
     <div id="seq3"></div>
     <div style="font-size:10px;color:var(--muted);margin:4px 0 2px;">4-item:</div>
     <div id="seq4"></div>
@@ -489,7 +489,7 @@ function applyRole(){
   var badge=document.getElementById('role-badge');
   if(isAdmin){
     if(entry)entry.style.display='block';
-    if(badge){badge.textContent='EDITOR';badge.style.color='#00e676';badge.style.borderColor='#00e676';badge.title=userEmail;}
+    if(badge){badge.textContent='Koeman';badge.style.color='#00e676';badge.style.borderColor='#00e676';badge.title=userEmail;}
   }else{
     if(entry)entry.style.display='none';
     if(badge){badge.textContent='VIEW ONLY';badge.style.color='#ffb74d';badge.style.borderColor='#ffb74d';badge.title=userEmail+' — read access';}
@@ -684,7 +684,7 @@ function renderLast25(filled){
   var total25=last25.length;
   var base=getBaseline();
   gridEl.innerHTML=GRID_LAYOUT.map(function(f){
-    if(!f)return '<div class="gg-cell" style="background:#0a0c10;border:none;"></div>';
+    if(!f)return '<div class="gg-cell logo-cell" style="background:#0a0c10;border:1px solid #222;"><div class="gg-center-name">CRYPTO<br>NEXUS</div></div>';
     var cnt=freq[f]||0;
     var actual=cnt/total25*100;
     var expected=base[f];
@@ -1066,18 +1066,19 @@ function ui(){
 
   var f2=getFilledRounds(),c2=f2.map(function(r){return r.code;}),n2=c2.length;
   var sa=document.getElementById('seq-alert');
-  if(n2>=2){
+  if(n2>=3){
     sa.style.display='block';
     function seqMatch(depth,elId){
-      if(n2<depth+1)return;
+      var el=document.getElementById(elId);
+      if(!el)return;
+      if(n2<depth+1){el.innerHTML='<span style="color:var(--muted)">need more rounds</span>';return;}
       var map={};
       for(var i=depth;i<n2;i++){var key=c2.slice(i-depth,i).join('→'),nx=c2[i];if(!map[key])map[key]={};map[key][nx]=(map[key][nx]||0)+1;}
       var cur=c2.slice(n2-depth,n2).join('→');
-      var el=document.getElementById(elId);
       if(map[cur]){var m=map[cur],tot=Object.values(m).reduce(function(a,b){return a+b;},0);el.innerHTML='<b>'+cur+'</b> → '+Object.keys(m).sort(function(a,b){return m[b]-m[a];}).map(function(k){return'<span class="sb '+k+'">'+k+':'+m[k]+'('+Math.round(m[k]/tot*100)+'%)</span>';}).join(' ');}
       else el.innerHTML='<b>'+cur+'</b> → <span style="color:var(--muted)">no match</span>';
     }
-    seqMatch(2,'seq2');seqMatch(3,'seq3');seqMatch(4,'seq4');seqMatch(5,'seq5');
+    seqMatch(3,'seq3');seqMatch(4,'seq4');seqMatch(5,'seq5');
   } else sa.style.display='none';
 
   // Last 25 + Last 100 panels
