@@ -263,7 +263,7 @@ body{background:var(--bg);color:var(--text);font-family:Arial,sans-serif;font-si
       <div class="p25-sub">⚠️ OVERDUE</div>
       <div class="p25-due" id="p25-due">—</div>
 
-      <div class="p25-sub">🎯 NEXT PREDICTION (last 25 Markov)</div>
+      <div class="p25-sub">🎯 SHORT-WINDOW ESTIMATE (unvalidated)</div>
       <div class="p25-predict" id="p25-predict">—</div>
     </div>
   </div>
@@ -271,7 +271,7 @@ body{background:var(--bg);color:var(--text);font-family:Arial,sans-serif;font-si
   <!-- ── LAST 100 FREQUENCY + OVERDUE MODEL ── -->
   <div class="p25" id="p100-panel" style="border-color:#00e5ff55;">
     <div class="p25-title" style="color:#00e5ff;">
-      <span>🧠 LAST 100 + DUE MODEL</span>
+      <span>🧠 LAST 100 FREQUENCY</span>
       <button class="p25-toggle" id="p100-toggle" style="border-color:#00e5ff;color:#00e5ff;" onclick="toggleP100()">HIDE</button>
     </div>
     <div id="p100-body">
@@ -283,7 +283,7 @@ body{background:var(--bg);color:var(--text);font-family:Arial,sans-serif;font-si
       <div id="p100-projection" style="font-size:11px;line-height:1.7;"></div>
       <div class="p25-sub">🎯 COMBINED WATCH</div>
       <div id="p100-pick" class="p25-predict" style="font-size:1.15em;letter-spacing:0;">—</div>
-      <div style="font-size:9px;color:var(--muted);margin-top:7px;line-height:1.5;">Due pressure is an anomaly signal, not a guarantee. In an independent RNG, a long absence does not mathematically increase the next-spin probability. The model caps overdue influence and tracks its real accuracy.</div>
+      <div style="font-size:9px;color:var(--muted);margin-top:7px;line-height:1.5;">Absence is descriptive only and does not raise the estimate. These estimates use assumed historical rates; actual game probabilities are unknown.</div>
     </div>
   </div>
 
@@ -316,13 +316,13 @@ body{background:var(--bg);color:var(--text);font-family:Arial,sans-serif;font-si
     <button class="rng-btn" id="rng-run-btn" onclick="runRNG()">▶ RUN ANALYSIS</button>
     <div style="background:#1e2330;border-radius:4px;height:5px;margin-bottom:8px;overflow:hidden;display:none;" id="rng-prog-wrap"><div style="background:var(--accent);height:100%;transition:width .3s;" id="rng-prog-bar" style="width:0%"></div></div>
     <div id="rng-best" style="display:none;" class="rng-result">
-      <div class="rng-result-title">BEST PREDICTION</div>
+      <div class="rng-result-title">ANALYSIS RESULT</div>
       <div style="display:flex;align-items:center;justify-content:space-between;">
         <div id="rng-best-letter" style="font-size:38px;font-weight:900;"></div>
         <div style="text-align:right;">
           <div style="font-size:10px;color:var(--muted);">Method</div>
           <div id="rng-best-method" style="font-size:12px;color:var(--accent);"></div>
-          <div style="font-size:10px;color:var(--muted);margin-top:3px;">Accuracy</div>
+          <div style="font-size:10px;color:var(--muted);margin-top:3px;">Evaluation</div>
           <div id="rng-best-acc" style="font-size:16px;font-weight:700;"></div>
         </div>
       </div>
@@ -332,7 +332,7 @@ body{background:var(--bg);color:var(--text);font-family:Arial,sans-serif;font-si
       <div id="rng-markov-content"></div>
     </div>
     <div id="rng-algos" style="display:none;" class="rng-result">
-      <div class="rng-result-title">RNG ALGORITHMS</div>
+      <div class="rng-result-title">GENERATOR FIT / UNSEEN HOLDOUT</div>
       <div id="rng-algos-content"></div>
     </div>
     <div id="rng-log-box" style="display:none;" class="rng-result">
@@ -344,7 +344,7 @@ body{background:var(--bg);color:var(--text);font-family:Arial,sans-serif;font-si
     <button class="rng-btn" id="rng-run-btn2" onclick="runRNG2()">▶ RUN LAST 25</button>
     <div style="background:#1e2330;border-radius:4px;height:5px;margin-bottom:8px;overflow:hidden;display:none;" id="rng-prog-wrap2"><div style="background:#ffb74d;height:100%;transition:width .3s;" id="rng-prog-bar2" style="width:0%"></div></div>
     <div id="rng-best2" style="display:none;" class="rng-result">
-      <div class="rng-result-title">BEST PREDICTION (LAST 25)</div>
+      <div class="rng-result-title">ANALYSIS RESULT (LAST 25)</div>
       <div style="display:flex;align-items:center;justify-content:space-between;">
         <div id="rng-best-letter2" style="font-size:38px;font-weight:900;"></div>
         <div style="text-align:right;">
@@ -400,6 +400,8 @@ body{background:var(--bg);color:var(--text);font-family:Arial,sans-serif;font-si
 </div>
 <div class="toast" id="toast"></div>
 
+<script src="prediction-core.js"></script>
+<script src="data-client.js"></script>
 <script>
 var SB_URL='https://hyfiqhjjhbarijbodupa.supabase.co';
 var SB_KEY='sb_publishable_mf1dNfI_2D_hojbW95wZBA_73YF50u3';
@@ -417,6 +419,27 @@ function computeRole(){
   return isAdmin;
 }
 var rounds=[];
+var loadedDate=null, loadVersion=0, authVersion=0, writeBusy=false, refreshPromise=null;
+var rngWorker=null, analysisCache=null;
+var transport=RoundTransport.create({url:SB_URL,key:SB_KEY,getToken:function(){return tok;},refresh:refreshToken});
+function stopAnalysis(){
+  if(rngWorker){rngWorker.terminate();rngWorker=null;}
+  var b=document.getElementById('rng-run-btn');if(b){b.disabled=false;b.textContent='▶ RUN ANALYSIS';}
+  ['rng-best','rng-markov','rng-algos','rng-best2','rng-markov2','rng-log-box','rng-log-box2','rng-prog-wrap','rng-prog-wrap2'].forEach(function(id){document.getElementById(id).style.display='none';});
+}
+function historyChanged(){analysisCache=null;stopAnalysis();}
+function getAnalysis(){
+  var f=RoundCore.contiguousTail(getFilledRounds()),key=RoundCore.fingerprint(f);
+  if(!analysisCache||analysisCache.key!==key)analysisCache={key:key,value:RoundCore.evaluate(f.map(function(r){return r.code;}))};
+  return analysisCache.value;
+}
+function safeRead(key,fallback){try{var value=JSON.parse(localStorage.getItem(key));return value&&typeof value==='object'&&!Array.isArray(value)?value:fallback;}catch(e){return fallback;}}
+function safeWrite(key,value){try{localStorage.setItem(key,JSON.stringify(value));return true;}catch(e){toast('Browser storage unavailable — accuracy history could not be saved');return false;}}
+function scoreKey(){return 'rt_accuracy_v2:'+uid;}
+function validRound(value){var n=Number(value);return Number.isInteger(n)&&n>=1&&n<=2600?n:null;}
+function requireReady(){if(!isAdmin)return denyWrite();if(writeBusy){toast('Save already in progress');return false;}if(loadedDate!==curDate){toast('Load this date before editing');return false;}return true;}
+function escapeHtml(value){return String(value==null?'':value).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+
 var curDate='';
 var enterDir=1;
 var editingId=null,editingCode=null;
@@ -439,35 +462,48 @@ function toggleP25(){p25Visible=!p25Visible;document.getElementById('p25-body').
 
 // ── AUTH ──
 function amsg(txt,type){var e=document.getElementById('amsg');e.textContent=txt;e.className=type==='ok'?'aok':'aerr';e.style.display='block';}
+async function authRequest(path,init){
+  var controller=new AbortController(),timer=setTimeout(function(){controller.abort();},15000);
+  try{var response=await fetch(SB_URL+path,Object.assign({},init,{signal:controller.signal}));
+    var data=await response.json();if(!response.ok)throw new Error(data.error_description||data.msg||data.message||'Authentication failed');return data;
+  }finally{clearTimeout(timer);}
+}
 function signIn(){
   var em=document.getElementById('em').value.trim(),pw=document.getElementById('pw').value;
   if(!em||!pw){amsg('Enter email and password','err');return;}
   var b=document.getElementById('btnsi');b.textContent='Signing in...';b.disabled=true;
-  fetch(SB_URL+'/auth/v1/token?grant_type=password',{method:'POST',headers:{'Content-Type':'application/json','apikey':SB_KEY},body:JSON.stringify({email:em,password:pw})})
-  .then(function(r){return r.json();}).then(function(d){
+  authRequest('/auth/v1/token?grant_type=password',{method:'POST',headers:{'Content-Type':'application/json','apikey':SB_KEY},body:JSON.stringify({email:em,password:pw})})
+  .then(function(d){
     b.textContent='SIGN IN';b.disabled=false;
-    if(d.access_token){tok=d.access_token;uid=d.user.id;userEmail=(d.user.email||'').toLowerCase();if(d.refresh_token)refreshTok=d.refresh_token;saveSession();initApp();}
+    if(d.access_token){authVersion++;tok=d.access_token;uid=d.user.id;userEmail=(d.user.email||'').toLowerCase();if(d.refresh_token)refreshTok=d.refresh_token;saveSession();initApp();}
     else amsg(d.error_description||d.error||'Login failed','err');
   }).catch(function(e){b.textContent='SIGN IN';b.disabled=false;amsg(''+e,'err');});
 }
 function signUp(){
   var em=document.getElementById('em').value.trim(),pw=document.getElementById('pw').value;
   if(!em||!pw){amsg('Enter email and password','err');return;}
-  fetch(SB_URL+'/auth/v1/signup',{method:'POST',headers:{'Content-Type':'application/json','apikey':SB_KEY},body:JSON.stringify({email:em,password:pw})})
-  .then(function(r){return r.json();}).then(function(d){
-    if(d.access_token){tok=d.access_token;uid=d.user.id;userEmail=(d.user.email||'').toLowerCase();if(d.refresh_token)refreshTok=d.refresh_token;saveSession();initApp();}
+  authRequest('/auth/v1/signup',{method:'POST',headers:{'Content-Type':'application/json','apikey':SB_KEY},body:JSON.stringify({email:em,password:pw})})
+  .then(function(d){
+    if(d.access_token){authVersion++;tok=d.access_token;uid=d.user.id;userEmail=(d.user.email||'').toLowerCase();if(d.refresh_token)refreshTok=d.refresh_token;saveSession();initApp();}
     else amsg(d.error_description||d.error||'Check email for confirmation','ok');
-  });
+  }).catch(function(){amsg('Sign-up failed. Check connection and try again.','err');});
 }
-function saveSession(){localStorage.setItem('rt_session',JSON.stringify({tok:tok,uid:uid,email:userEmail,refresh:refreshTok}));}
-function doLogout(){tok=null;uid=null;userEmail='';isAdmin=false;rounds=[];localStorage.removeItem('rt_session');document.getElementById('app').style.display='none';document.getElementById('auth').style.display='flex';}
+function saveSession(){safeWrite('rt_session',{tok:tok,uid:uid,email:userEmail,refresh:refreshTok});}
+function doLogout(){authVersion++;loadVersion++;loadedDate=null;historyChanged();tok=null;uid=null;refreshTok=null;userEmail='';isAdmin=false;rounds=[];closeModal();localStorage.removeItem('rt_session');document.getElementById('app').style.display='none';document.getElementById('auth').style.display='flex';}
 async function refreshToken(){
-  var s=localStorage.getItem('rt_session');if(!s)return false;
-  try{var o=JSON.parse(s);if(!o.refresh)return false;
-    var r=await fetch(SB_URL+'/auth/v1/token?grant_type=refresh_token',{method:'POST',headers:{'Content-Type':'application/json','apikey':SB_KEY},body:JSON.stringify({refresh_token:o.refresh})});
-    var d=await r.json();
-    if(d.access_token){tok=d.access_token;if(d.refresh_token)refreshTok=d.refresh_token;saveSession();return true;}
-  }catch(e){}return false;
+  if(refreshPromise)return refreshPromise;
+  var version=authVersion,refresh=refreshTok;
+  if(!refresh)return false;
+  refreshPromise=(async function(){
+    var controller=new AbortController(),timer=setTimeout(function(){controller.abort();},15000);
+    try{
+      var r=await fetch(SB_URL+'/auth/v1/token?grant_type=refresh_token',{method:'POST',signal:controller.signal,headers:{'Content-Type':'application/json','apikey':SB_KEY},body:JSON.stringify({refresh_token:refresh})});
+      var d=await r.json();
+      if(!r.ok||!d.access_token||version!==authVersion)return false;
+      tok=d.access_token;refreshTok=d.refresh_token||refresh;saveSession();return true;
+    }catch(e){return false;}finally{clearTimeout(timer);}
+  })();
+  try{return await refreshPromise;}finally{refreshPromise=null;}
 }
 
 // ── INIT ──
@@ -478,8 +514,8 @@ function initApp(){
   applyRole();
   var savedDir=localStorage.getItem('rt_dir');
   var savedRnum=localStorage.getItem('rt_rnum');
-  if(savedDir)setDir(parseInt(savedDir));
-  if(savedRnum)document.getElementById('rnum').value=savedRnum;
+  if(savedDir)setDir(savedDir==='-1'?-1:1);
+  if(validRound(savedRnum))document.getElementById('rnum').value=savedRnum;
   setToday();
 }
 // Show/hide everything that writes. Read-only users keep all the
@@ -496,78 +532,75 @@ function applyRole(){
   }
 }
 function denyWrite(){toast('View only — you cannot change rounds');return false;}
-function setToday(){curDate=todayUAE();document.getElementById('seldate').value=curDate;loadRounds();}
-function onDateChange(){curDate=document.getElementById('seldate').value;loadRounds();}
+function setToday(){if(writeBusy){toast('Wait for the save to finish');return;}curDate=todayUAE();document.getElementById('seldate').value=curDate;loadRounds();}
+function onDateChange(){if(writeBusy){document.getElementById('seldate').value=curDate;toast('Wait for the save to finish');return;}curDate=document.getElementById('seldate').value;loadRounds();}
 function shiftDate(days){
-  var d=new Date(curDate+'T12:00:00');
-  d.setDate(d.getDate()+days);
+  if(writeBusy){toast('Wait for the save to finish');return;}
+  var d=new Date(curDate+'T12:00:00Z');
+  d.setUTCDate(d.getUTCDate()+days);
   curDate=d.toISOString().split('T')[0];
   document.getElementById('seldate').value=curDate;
   loadRounds();
 }
 
 // ── LOAD — NO user_id filter, shared across all recorders ──
-function loadRounds(){
-  var btn=document.getElementById('refresh-btn');
-  btn.textContent='Loading...';
-  document.getElementById('hl').innerHTML='<div class="nodata">Loading...</div>';
-  fetch(SB_URL+'/rest/v1/rounds?play_date=eq.'+curDate+'&order=round_number.asc&limit=9999',{
-    headers:{'apikey':SB_KEY,'Authorization':'Bearer '+tok,'Range':'0-9999'}
-  }).then(function(r){
-    if(r.status===401){refreshToken().then(function(ok){if(ok)loadRounds();else{toast('Session expired');setTimeout(doLogout,1500);}});return null;}
-    return r.json();
-  }).then(function(d){
-    btn.textContent='↺ REFRESH';
-    if(!d)return;
-    if(!Array.isArray(d)){toast('Error: '+JSON.stringify(d).substring(0,60));return;}
-    rounds=d;
-    var filled=d.filter(function(r){return r.code&&r.code!=='';});
-    if(filled.length>0){
-      var mx=filled.reduce(function(a,b){return a.round_number>b.round_number?a:b;});
-      var next=enterDir===1?Math.min(2600,mx.round_number+1):Math.max(1,mx.round_number-1);
-      if(!localStorage.getItem('rt_rnum'))document.getElementById('rnum').value=next;
-    }
+async function loadRounds(){
+  if(writeBusy){toast('Wait for the save to finish');return;}
+  var version=++loadVersion,date=curDate,session=authVersion;
+  loadedDate=null;rounds=[];historyChanged();closeModal();ui();
+  var btn=document.getElementById('refresh-btn');btn.textContent='Loading...';
+  document.getElementById('hl').textContent='Loading...';
+  try{
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(date))throw new Error('Choose a valid date');
+    var data=await transport.list(date);
+    if(version!==loadVersion||date!==curDate||session!==authVersion)return;
+    rounds=RoundCore.validateRows(data,date);loadedDate=date;
+    reconcileScores();
+    var filled=getFilledRounds();
+    document.getElementById('rnum').value=filled.length?Math.min(2600,filled[filled.length-1].round_number+1):1;
     ui();
-  }).catch(function(e){btn.textContent='↺ REFRESH';toast('Network error');});
+  }catch(e){if(version===loadVersion){toast(e.message);document.getElementById('hl').textContent='Load failed. Refresh to try again.';}}
+  finally{if(version===loadVersion)btn.textContent='↺ REFRESH';}
+}
+async function mutateRound(path,method,body){
+  var result=await transport.request(path,{method:method,headers:{'Content-Type':'application/json',Prefer:'return=representation'},body:body?JSON.stringify(body):undefined});
+  if(!Array.isArray(result.data)||result.data.length!==1)throw new Error('No row changed. Refresh and check access permissions.');
+  return result.data[0];
+}
+async function enter(code){
+  if(!requireReady())return;
+  var rnum=validRound(document.getElementById('rnum').value);
+  if(!rnum||!RoundCore.CODES.includes(code)){toast('Use round 1–2600 and a valid result');return;}
+  var existing=rounds.find(function(r){return r.round_number===rnum;});
+  if(existing&&existing.code&&!confirm('Round #'+rnum+' already recorded as '+existing.code+'\nOverwrite with '+code+'?'))return;
+  var date=curDate,version=loadVersion,session=authVersion;
+  writeBusy=true;document.getElementById('ss').textContent='saving...';
+  try{
+    var body=existing?{code:code,play_time:nowTime(),user_id:uid}:{user_id:uid,play_date:date,play_time:nowTime(),round_number:rnum,code:code};
+    var row=await mutateRound('/rest/v1/rounds'+(existing?'?id=eq.'+encodeURIComponent(existing.id):''),existing?'PATCH':'POST',body);
+    if(date!==curDate||version!==loadVersion||session!==authVersion)return;
+    RoundCore.validateRows([row],date);
+    rounds=RoundCore.validateRows(rounds.filter(function(r){return r.id!==row.id;}).concat([row]),date);
+    if(!existing||!existing.code)gradeRound(rnum,code);else invalidateScoresFrom(rnum);
+    historyChanged();advance(rnum);ui();
+  }catch(e){if(date===curDate&&version===loadVersion&&session===authVersion){toast(e.message+' — refresh before retrying');loadedDate=null;rounds=[];historyChanged();ui();}}
+  finally{writeBusy=false;document.getElementById('ss').textContent='';}
 }
 
-// ── ENTER — first recorder wins, others get confirm prompt ──
-function enter(code){
-  if(!isAdmin)return denyWrite();
-  var rnum=parseInt(document.getElementById('rnum').value)||1;
-  var existing=rounds.find(function(r){return r.round_number===rnum;});
-  if(existing&&existing.code&&existing.code!==''){
-    if(!confirm('Round #'+rnum+' already recorded as '+existing.code+'\n\nOverwrite with '+code+'?'))return;
-    fetch(SB_URL+'/rest/v1/rounds?id=eq.'+existing.id,{method:'PATCH',headers:{'Content-Type':'application/json','apikey':SB_KEY,'Authorization':'Bearer '+tok,'Prefer':'return=representation'},body:JSON.stringify({code:code,play_time:nowTime(),user_id:uid})})
-    .then(function(r){return r.json();}).then(function(d){
-      if(Array.isArray(d)&&d[0]){var i=rounds.findIndex(function(r){return r.id===existing.id;});if(i>=0)rounds[i]=d[0];advance(rnum);ui();toast('Overwritten');}
-    });return;
-  }
-  document.getElementById('ss').textContent='saving...';
-  fetch(SB_URL+'/rest/v1/rounds',{method:'POST',headers:{'Content-Type':'application/json','apikey':SB_KEY,'Authorization':'Bearer '+tok,'Prefer':'return=representation'},body:JSON.stringify({user_id:uid,play_date:curDate,play_time:nowTime(),round_number:rnum,code:code})})
-  .then(function(r){return r.json();}).then(function(d){
-    document.getElementById('ss').textContent='';
-    if(Array.isArray(d)&&d[0]){
-      rounds.push(d[0]);rounds.sort(function(a,b){return a.round_number-b.round_number;});
-      gradeRound(rnum,code);
-      advance(rnum);ui();
-    }else if(d&&d.code==='23505'){
-      toast('Round #'+rnum+' already exists — refresh to see');loadRounds();
-    }else toast('Save error: '+(d&&d.message?d.message:JSON.stringify(d)));
-  }).catch(function(e){document.getElementById('ss').textContent='';toast(''+e);});
-}
 function advance(rnum){var v=enterDir===1?Math.min(2600,rnum+1):Math.max(1,rnum-1);document.getElementById('rnum').value=v;localStorage.setItem('rt_rnum',v);}
 
 // ── CLR / EDIT ──
-function clrRound(id){
-  if(!isAdmin)return denyWrite();
-  if(!confirm('Delete this round?'))return;
-  fetch(SB_URL+'/rest/v1/rounds?id=eq.'+id,{method:'DELETE',headers:{'apikey':SB_KEY,'Authorization':'Bearer '+tok}})
-  .then(async function(r){
-    if(!r.ok){var msg='Delete blocked';try{var d=await r.json();if(d&&d.message)msg=d.message;}catch(e){}toast(msg);return;}
-    rounds=rounds.filter(function(x){return x.id!==id;});ui();toast('Deleted');
-  }).catch(function(){toast('Delete failed');});
+async function clrRound(id){
+  if(!requireReady())return;
+  var row=rounds.find(function(r){return r.id===id;});if(!row||!confirm('Delete this round?'))return;
+  var date=curDate,version=loadVersion,session=authVersion;writeBusy=true;
+  try{
+    await mutateRound('/rest/v1/rounds?id=eq.'+encodeURIComponent(id),'DELETE');
+    if(date!==curDate||version!==loadVersion||session!==authVersion)return;
+    rounds=rounds.filter(function(r){return r.id!==id;});invalidateScoresFrom(row.round_number);historyChanged();ui();toast('Deleted');
+  }catch(e){if(date===curDate&&version===loadVersion&&session===authVersion){toast(e.message+' — refresh before retrying');loadedDate=null;rounds=[];historyChanged();ui();}}finally{writeBusy=false;}
 }
+
 function openEdit(id){
   if(!isAdmin)return denyWrite();
   var r=rounds.find(function(x){return x.id===id;});if(!r)return;
@@ -578,65 +611,42 @@ function openEdit(id){
 }
 function selCode(c){editingCode=c;document.querySelectorAll('.mfb').forEach(function(b){b.classList.toggle('sel',b.textContent===c);});}
 function closeModal(){document.getElementById('modal').style.display='none';}
-function saveEdit(){
-  if(!isAdmin)return denyWrite();
-  if(!editingId||!editingCode)return;
-  var rnum=parseInt(document.getElementById('medit-rnum').value)||1;
-  fetch(SB_URL+'/rest/v1/rounds?id=eq.'+editingId,{method:'PATCH',headers:{'Content-Type':'application/json','apikey':SB_KEY,'Authorization':'Bearer '+tok,'Prefer':'return=representation'},body:JSON.stringify({round_number:rnum,code:editingCode})})
-  .then(function(r){return r.json();}).then(function(d){
-    if(Array.isArray(d)&&d[0]){var i=rounds.findIndex(function(r){return r.id===editingId;});if(i>=0)rounds[i]=d[0];rounds.sort(function(a,b){return a.round_number-b.round_number;});closeModal();ui();toast('Saved');}
-  });
+async function saveEdit(){
+  if(!requireReady())return;
+  var id=editingId,code=editingCode,rnum=validRound(document.getElementById('medit-rnum').value);
+  var old=rounds.find(function(r){return r.id===id;});
+  if(!old||!rnum||!RoundCore.CODES.includes(code)){toast('Invalid round or result');return;}
+  if(rounds.some(function(r){return r.id!==id&&r.round_number===rnum;})){toast('That round number already exists');return;}
+  var date=curDate,version=loadVersion,session=authVersion;writeBusy=true;
+  try{
+    var row=await mutateRound('/rest/v1/rounds?id=eq.'+encodeURIComponent(id),'PATCH',{round_number:rnum,code:code});
+    if(date!==curDate||version!==loadVersion||session!==authVersion)return;
+    rounds=RoundCore.validateRows(rounds.filter(function(r){return r.id!==id;}).concat([row]),date);
+    invalidateScoresFrom(Math.min(old.round_number,rnum));closeModal();historyChanged();ui();toast('Saved');
+  }catch(e){if(date===curDate&&version===loadVersion&&session===authVersion){toast(e.message+' — refresh before retrying');loadedDate=null;rounds=[];historyChanged();ui();}}finally{writeBusy=false;}
 }
 
 // ── GETTERS ──
-function getFilledRounds(){return rounds.filter(function(r){return r.code&&r.code!=='';});}
-function since(code){var c=getFilledRounds().map(function(r){return r.code;});for(var i=c.length-1;i>=0;i--)if(c[i]===code)return c.length-1-i;return null;}
+function getFilledRounds(){return rounds.filter(function(r){return RoundCore.CODES.includes(r.code);});}
+function since(code){var c=RoundCore.contiguousTail(getFilledRounds()).map(function(r){return r.code;});for(var i=c.length-1;i>=0;i--)if(c[i]===code)return c.length-1-i;return null;}
 
 // ── PREDICT ──
 function predict(){
-  var f=getFilledRounds(),c=f.map(function(r){return r.code;}),n=c.length;
-  if(n<4)return{t:'—',cl:'',info:'need more data'};
-  var p0=c[n-3],p1=c[n-2],p2=c[n-1];
-  var counts={T:0,K:0,O:0,L:0,C:0,S:0,G:0,W:0};
-  for(var i=0;i<=n-4;i++)if(c[i]===p0&&c[i+1]===p1&&c[i+2]===p2){var x=c[i+3];if(counts[x]!==undefined)counts[x]++;}
-  var total=0;for(var k in counts)total+=counts[k];
-  if(total===0)return{t:'—',cl:'',info:'no pattern yet'};
-  var maxCount=0,maxFruit='';
-  for(var k in counts)if(counts[k]>maxCount){maxCount=counts[k];maxFruit=k;}
-  if(maxCount<3)return{t:'—',cl:'',info:'need 3+ matches (max '+maxCount+')'};
-  var cl=['G','W','S','C'].indexOf(maxFruit)>=0?maxFruit.toLowerCase():'';
-  function pct(v){return Math.round(v/total*100)+'%';}
-  var sorted=Object.keys(counts).filter(function(k){return counts[k]>0;}).sort(function(a,b){return counts[b]-counts[a];});
-  var topInfo=sorted.slice(0,4).map(function(k){return k+':'+counts[k]+'('+pct(counts[k])+')';}).join(' ');
-  var info='Pattern:'+p0+'→'+p1+'→'+p2+'\n'+topInfo+'\nMatches:'+total;
-  var sw=since('W');if(sw!==null&&sw>=100)info+='\n🚨W DANGER('+sw+')';
-  var sg=since('G');if(sg!==null&&sg>=60)info+='\n⚠️G overdue('+sg+')';
-  return{t:maxFruit,cl:cl,info:info};
+  var f=RoundCore.contiguousTail(getFilledRounds());
+  if(loadedDate!==curDate||f.length<20)return {t:'—',cl:'',info:'Need 20 loaded, consecutive rounds'};
+  var a=getAnalysis(),prob=a.probs[RoundCore.CODES.indexOf(a.pick)]*100;
+  return {t:a.edge?a.pick:'—',cl:'',info:(a.edge?'Historical pattern advantage (unconfirmed live)':'NO VALIDATED PATTERN EDGE')+
+    '\nMost likely: '+a.pick+' · estimated '+prob.toFixed(1)+'%'+
+    '\n'+a.n+' walk-forward tests · policy '+(a.n?a.policyHits/a.n*100:0).toFixed(1)+'% vs frequency '+(a.n?a.baseHits/a.n*100:0).toFixed(1)+'%'+
+    '\nConsecutive history: '+f.length+' / '+getFilledRounds().length+' recorded rounds'};
 }
 
 // ── LAST 25 VISUAL ANALYSIS ──
-function buildMarkovSimple(seq,order){
-  var chain={};
-  for(var i=order;i<seq.length;i++){
-    var key=seq.slice(i-order,i).join(',');
-    var nx=seq[i];
-    if(!chain[key])chain[key]={};
-    chain[key][nx]=(chain[key][nx]||0)+1;
-  }
-  return chain;
-}
-function markovNext(chain,last,order){
-  var key=last.slice(-order).join(',');
-  if(!chain[key])return null;
-  var c=chain[key],best=null,bc=0,tot=0;
-  for(var k in c){tot+=c[k];if(c[k]>bc){bc=c[k];best=k;}}
-  return best?{fruit:best,conf:(bc/tot*100).toFixed(0),matches:tot}:null;
-}
-
 function renderLast25(filled){
-  var last25=filled.slice(-25).map(function(r){return r.code;}).reverse(); // newest first
+  var last25=RoundCore.contiguousTail(filled).slice(-25).map(function(r){return r.code;}).reverse(); // newest first
   if(last25.length<3){
-    document.getElementById('p25-predict').textContent='Need 3+ rounds';
+    ['p25-bar','p25-hot','p25-cold','p25-grid','p25-streak','p25-cluster','p25-due'].forEach(function(id){document.getElementById(id).textContent='—';});
+    document.getElementById('p25-predict').textContent='Need 3+ consecutive rounds';
     return;
   }
 
@@ -723,41 +733,18 @@ function renderLast25(filled){
   if(!dueLines.length)dueLines.push('<span style="color:var(--green)">✅ All fruits appeared</span>');
   document.getElementById('p25-due').innerHTML=dueLines.join('<br>');
 
-  // 7. Markov prediction from last 25
-  var seq25=last25.slice().reverse(); // oldest first for markov
-  var chain2=buildMarkovSimple(seq25,2);
-  var chain3=buildMarkovSimple(seq25,3);
-  var mp2=markovNext(chain2,seq25,2);
-  var mp3=markovNext(chain3,seq25,3);
-  // Pick best confidence
-  var best=null;
-  if(mp3&&mp3.matches>=2)best=mp3;
-  else if(mp2&&mp2.matches>=2)best=mp2;
-  else best=mp2||mp3;
-
-  var predEl=document.getElementById('p25-predict');
-  if(best&&best.fruit){
-    predEl.textContent=FEMOJI[best.fruit]+' '+best.fruit+' — '+FNAME[best.fruit];
-    predEl.style.color=FCOL[best.fruit];
-    predEl.style.borderColor=FCOL[best.fruit];
-    predEl.style.background='rgba('+hexToRgb(FCOL[best.fruit])+',0.06)';
-    predEl.title='Confidence: '+best.conf+'% from '+best.matches+' matches';
-  } else {
-    predEl.textContent='— not enough pattern —';
-    predEl.style.color='var(--muted)';
-    predEl.style.borderColor='var(--muted)';
-  }
-}
-function hexToRgb(hex){
-  var r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
-  return r+','+g+','+b;
+  var probs=RoundCore.distribution(last25.slice().reverse()).pattern;
+  var best=RoundCore.CODES[RoundCore.pick(probs)],predEl=document.getElementById('p25-predict');
+  predEl.textContent=FEMOJI[best]+' '+best+' · estimate '+(Math.max.apply(null,probs)*100).toFixed(1)+'%';
+  predEl.title='Smoothed short-window estimate; too few rounds to establish an edge';
+  predEl.style.color=FCOL[best];predEl.style.borderColor=FCOL[best];
 }
 
 // ═══════════ BASELINE ═══════════
 // Long-run hit rate per fruit, measured from 432 recorded rounds.
 // If the currently loaded day has 60+ rounds we use that day instead,
 // so the baseline adapts if the game's weighting ever changes.
-var BASELINE_DEFAULT={T:20.6,L:18.8,O:18.1,K:17.8,C:9.0,S:7.2,G:5.6,W:3.0};
+var BASELINE_DEFAULT={};RoundCore.CODES.forEach(function(c,i){BASELINE_DEFAULT[c]=RoundCore.PRIOR[i]*100;});
 function getBaseline(){
   var f=getFilledRounds();
   if(f.length<60)return BASELINE_DEFAULT;
@@ -795,7 +782,7 @@ function renderSessionBias(){
 
   var hot=rows[0],cold=rows[rows.length-1];
   var html='';
-  html+='<div style="font-size:11px;color:var(--muted);margin-bottom:6px;">Session: '+n+' rounds · compared to long-run rates</div>';
+  html+='<div style="font-size:11px;color:var(--muted);margin-bottom:6px;">Session: '+n+' rounds · compared to assumed reference rates</div>';
   html+='<div class="sb-list">'+rows.map(function(r){
     var col=r.z>=1.5?'#00e676':r.z<=-1.5?'#ef5350':'var(--muted)';
     var lbl=r.z>=1.5?'HOT':r.z<=-1.5?'COLD':'normal';
@@ -809,22 +796,21 @@ function renderSessionBias(){
   }).join('')+'</div>';
 
   var verdict='';
-  if(hot.z>=2)      verdict='<span style="color:#00e676">🔥 '+FEMOJI[hot.f]+' '+FNAME[hot.f]+' is running well above its normal rate this session.</span>';
+  if(hot.z>=2)      verdict='<span style="color:#00e676">🔥 '+FEMOJI[hot.f]+' '+FNAME[hot.f]+' is above the assumed reference rate this session.</span>';
   else if(hot.z>=1.5) verdict='<span style="color:#ffd600">'+FEMOJI[hot.f]+' '+FNAME[hot.f]+' is mildly hot — not yet conclusive.</span>';
-  else              verdict='<span style="color:var(--muted)">No fruit is meaningfully off its normal rate. Session looks like standard weighting.</span>';
-  if(cold.z<=-2) verdict+='<br><span style="color:#ef5350">❄️ '+FEMOJI[cold.f]+' '+FNAME[cold.f]+' is well below normal ('+cold.cnt+' vs '+cold.exp.toFixed(1)+' expected).</span>';
+  else              verdict='<span style="color:var(--muted)">Observed counts are near the assumed reference rates. This does not test whether outcomes are independent.</span>';
+  if(cold.z<=-2) verdict+='<br><span style="color:#ef5350">❄️ '+FEMOJI[cold.f]+' '+FNAME[cold.f]+' is below the assumed reference ('+cold.cnt+' vs '+cold.exp.toFixed(1)+' expected).</span>';
   html+='<div style="margin-top:8px;font-size:11px;line-height:1.6;">'+verdict+'</div>';
-  html+='<div style="margin-top:6px;font-size:9px;color:var(--muted);">σ = standard deviations from expected. ±1.5σ is noise territory; ±2σ starts to mean something.</div>';
+  html+='<div style="margin-top:6px;font-size:9px;color:var(--muted);">σ = standard deviations from expected. ±1.5σ is noise territory; These are descriptive comparisons across eight fruits, not evidence of predictability.</div>';
   el.innerHTML=html;
 }
 
 
 // ═══════════ LAST 100 FREQUENCY + DUE MODEL ═══════════
-// Uses long-run rates as the stable prior, recent 100 as an adaptive signal,
-// and a capped overdue multiplier. "Due" is deliberately NOT treated as a
-// true probability increase unless the accuracy tracker proves it helps.
+// Uses assumed historical rates as a prior and recent counts as evidence.
+// Gap lengths are descriptive and never modify estimated probabilities.
 function calcLast100Model(){
-  var f=getFilledRounds(), seq=f.slice(-100).map(function(r){return r.code;});
+  var f=RoundCore.contiguousTail(getFilledRounds()), seq=f.slice(-100).map(function(r){return r.code;});
   var n=seq.length, fruits=['T','K','O','L','C','S','G','W'];
   if(!n)return {n:0,rows:[],pick:null};
   var cnt={T:0,K:0,O:0,L:0,C:0,S:0,G:0,W:0};
@@ -841,8 +827,7 @@ function calcLast100Model(){
     var priorMaxGap=gaps.length?Math.max.apply(null,gaps):null;
     var expectedGap=blendPct>0?100/blendPct:999;
     var dueRatio=since/expectedGap;
-    var dueBoost=1+Math.min(0.30,Math.max(0,dueRatio-1)*0.20);
-    var raw=blendPct*dueBoost;
+    var raw=blendPct; // Absence does not increase next-round probability.
     rows.push({f:x,count:cnt[x],recent:recentPct,blend:blendPct,since:since,expectedGap:expectedGap,due:dueRatio,priorMax:priorMaxGap,raw:raw});
   });
   var sumRaw=rows.reduce(function(a,r){return a+r.raw;},0);
@@ -855,13 +840,13 @@ function calcLast100Model(){
 function renderLast100Model(){
   var table=document.getElementById('p100-table');if(!table)return;
   var m=calcLast100Model();
-  if(!m.n){table.innerHTML='<div class="nodata">No rounds yet</div>';return;}
-  document.getElementById('p100-summary').innerHTML='Window: <b>'+m.n+'</b> rounds · 100R = observed frequency · Since = rounds absent · Due = absence ÷ expected gap · Model = blended/capped watch score.';
+  if(!m.n){table.textContent='No rounds yet';['p100-summary','p100-overdue','p100-projection','p100-pick'].forEach(function(id){document.getElementById(id).textContent='—';});return;}
+  document.getElementById('p100-summary').innerHTML='Window: <b>'+m.n+'</b> rounds · 100R = observed frequency · Since = rounds absent · Due = absence ÷ expected gap · Model = smoothed frequency estimate.';
   var rows=m.rows.slice().sort(function(a,b){return b.count-a.count;});
   table.innerHTML='<div style="display:grid;grid-template-columns:46px 42px 48px 48px 52px 1fr;gap:4px;font-size:9px;color:var(--muted);padding:3px 4px;border-bottom:1px solid var(--border);"><span>FRUIT</span><span>100R</span><span>SINCE</span><span>DUE</span><span>MODEL</span><span></span></div>'
     +rows.map(function(r){
       var dueCol=r.due>=2?'#ef5350':r.due>=1.25?'#ffd600':'var(--muted)';
-      var tag=r.due>=2?'VERY DUE':r.due>=1.25?'DUE':'';
+      var tag=r.due>=2?'LONG GAP':r.due>=1.25?'GAP':'';
       return '<div style="display:grid;grid-template-columns:46px 42px 48px 48px 52px 1fr;gap:4px;align-items:center;font-size:10px;padding:5px 4px;border-bottom:1px solid var(--border);">'
         +'<span style="color:'+FCOL[r.f]+';font-weight:700;">'+FEMOJI[r.f]+' '+r.f+'</span>'
         +'<span>'+r.count+' ('+r.recent.toFixed(0)+'%)</span>'
@@ -893,147 +878,83 @@ function toggleP100(){
   var shown=b.style.display!=='none';b.style.display=shown?'none':'block';t.textContent=shown?'SHOW':'HIDE';
 }
 
-// ═══════════ PREDICTION ACCURACY TRACKER ═══════════
-// Every time the app shows predictions it stashes them against the
-// round they refer to. When that round is actually entered, each
-// method gets graded. Random baseline is 12.5% (1 in 8).
-var METHODS={
-  main:{label:'Pattern (3-seq)',col:'#00e5ff'},
-  l25 :{label:'Markov last 25',col:'#ffb74d'},
-  bias:{label:'Session hot fruit',col:'#00e676'},
-  anti:{label:'Anti-streak',col:'#ce93d8'},
-  freq:{label:'Most frequent',col:'#e53935'},
-  due100:{label:'100R due model',col:'#ffd600'}
-};
-function loadStash(){try{return JSON.parse(localStorage.getItem('rt_predlog')||'{}');}catch(e){return {};}}
-function saveStash(o){localStorage.setItem('rt_predlog',JSON.stringify(o));}
-function loadScores(){
-  try{var s=JSON.parse(localStorage.getItem('rt_scores')||'{}');
-    for(var k in METHODS)if(!s[k])s[k]={h:0,m:0};
-    return s;
-  }catch(e){var d={};for(var k in METHODS)d[k]={h:0,m:0};return d;}
+// Prospective, per-account ledger. Legacy scores used different, biased models
+// and are deliberately not mixed with this version.
+var METHODS={main:{label:'Pattern (when eligible)',col:'#00e5ff'},l25:{label:'Smoothed last 25',col:'#ffb74d'},freq:{label:'Adaptive frequency baseline',col:'#e53935'},freq100:{label:'Smoothed last 100',col:'#ffd600'}};
+function loadLedger(){
+  var raw=safeRead(scoreKey(),{}),out={};
+  Object.keys(raw).forEach(function(key){
+    var e=raw[key];
+    if(e&&/^\d{4}-\d{2}-\d{2}$/.test(e.date)&&validRound(e.round)&&Number.isFinite(e.createdAt)&&
+      typeof e.context==='string'&&e.predictions&&typeof e.predictions==='object'&&
+      (e.actual===null||RoundCore.CODES.includes(e.actual))&&key===e.date+'#'+e.round&&
+      Object.keys(METHODS).every(function(m){return e.predictions[m]===null||RoundCore.CODES.includes(e.predictions[m]);}))out[key]=e;
+  });
+  return out;
 }
-function saveScores(o){localStorage.setItem('rt_scores',JSON.stringify(o));}
-
+function saveLedger(ledger){
+  var keys=Object.keys(ledger).sort(function(a,b){return ledger[a].createdAt-ledger[b].createdAt;});
+  keys.slice(0,Math.max(0,keys.length-400)).forEach(function(k){delete ledger[k];});
+  return safeWrite(scoreKey(),ledger);
+}
+function contextSignature(rows){
+  var text=RoundCore.fingerprint(rows),a=2166136261,b=5381;
+  for(var i=0;i<text.length;i++){a=Math.imul(a^text.charCodeAt(i),16777619);b=Math.imul(b,33)^text.charCodeAt(i);}
+  return text.length+':'+(a>>>0)+':'+(b>>>0);
+}
 function currentPredictions(){
-  var f=getFilledRounds();
-  if(f.length<5)return null;
-  var codes=f.map(function(r){return r.code;}),n=codes.length;
-  var p={};
-
-  // main — existing 3-sequence pattern predictor
-  var mp=predict();
-  p.main=(mp.t&&mp.t!=='—')?mp.t:null;
-
-  // l25 — markov on last 25
-  var last25=codes.slice(-25);
-  var c2=buildMarkovSimple(last25,2),c3=buildMarkovSimple(last25,3);
-  var m3=markovNext(c3,last25,3),m2=markovNext(c2,last25,2);
-  var bestM=(m3&&m3.matches>=2)?m3:(m2&&m2.matches>=2)?m2:(m2||m3);
-  p.l25=bestM?bestM.fruit:null;
-
-  // bias — hottest fruit this session vs baseline
-  var cnt={T:0,K:0,O:0,L:0,C:0,S:0,G:0,W:0};
-  f.forEach(function(r){if(cnt[r.code]!==undefined)cnt[r.code]++;});
-  var bz=null,bf=null;
-  for(var k in cnt){
-    var pp=BASELINE_DEFAULT[k]/100,ex=pp*n,sd=Math.sqrt(n*pp*(1-pp));
-    var z=sd>0?(cnt[k]-ex)/sd:0;
-    if(bz===null||z>bz){bz=z;bf=k;}
-  }
-  p.bias=bf;
-
-  // anti — if last fruit repeated, bet the top-rate fruit that isn't it
-  var lastF=codes[n-1],rep=1;
-  while(rep<n&&codes[n-1-rep]===lastF)rep++;
-  var order=['T','L','O','K','C','S','G','W'];
-  p.anti=(rep>=2)?order.filter(function(x){return x!==lastF;})[0]:lastF;
-
-  // freq — simply the highest-baseline fruit
-  p.freq='T';
-
-  // due100 — last-100 frequency + capped overdue model
+  var f=RoundCore.contiguousTail(getFilledRounds());if(f.length<20)return null;
+  var a=getAnalysis(),short=RoundCore.distribution(f.slice(-25).map(function(r){return r.code;})).pattern;
   var dm=calcLast100Model();
-  p.due100=(dm&&dm.pick)?dm.pick.f:null;
-
-  return p;
+  return {main:a.edge?a.pick:null,l25:RoundCore.CODES[RoundCore.pick(short)],freq:a.basePick,freq100:dm.pick?dm.pick.f:null};
 }
-
 function stashPredictions(){
-  var p=currentPredictions();
-  if(!p)return;
-  var f=getFilledRounds();
-  if(!f.length)return;
-  var nextRound=f[f.length-1].round_number+(enterDir===1?1:-1);
-  var st=loadStash();
-  var key=curDate+'#'+nextRound;
-  if(!st[key]){st[key]=p;
-    // keep the stash small
-    var keys=Object.keys(st);
-    if(keys.length>400)keys.slice(0,keys.length-400).forEach(function(k){delete st[k];});
-    saveStash(st);
-  }
+  if(!uid||loadedDate!==curDate||curDate!==todayUAE()||enterDir!==1)return;
+  var p=currentPredictions(),f=getFilledRounds();if(!p||!f.length)return;
+  var next=f[f.length-1].round_number+1;
+  if(next>2600)return;
+  var ledger=loadLedger(),key=curDate+'#'+next;
+  if(ledger[key])return;
+  ledger[key]={date:curDate,round:next,createdAt:Date.now(),context:contextSignature(f),predictions:p,actual:null};
+  saveLedger(ledger);
 }
-
-function gradeRound(roundNum,actual){
-  var st=loadStash(),key=curDate+'#'+roundNum;
-  var p=st[key];
-  if(!p)return;
-  var sc=loadScores(),graded=[];
-  for(var m in METHODS){
-    if(!p[m])continue;
-    if(p[m]===actual){sc[m].h++;graded.push(METHODS[m].label+' ✓');}
-    else sc[m].m++;
-  }
-  saveScores(sc);
-  delete st[key];saveStash(st);
-  if(graded.length)toast('Hit: '+graded.join(', '));
-  renderAccuracy();
+function reconcileScores(){
+  var ledger=loadLedger(),changed=false;
+  Object.keys(ledger).forEach(function(key){
+    var e=ledger[key];if(!e||e.date!==curDate)return;
+    var prefix=getFilledRounds().filter(function(r){return r.round_number<e.round;});
+    var actual=getFilledRounds().find(function(r){return r.round_number===e.round;});
+    if(!prefix.length||prefix[prefix.length-1].round_number+1!==e.round||contextSignature(prefix)!==e.context||
+      (e.actual&&(!actual||e.actual!==actual.code))){delete ledger[key];changed=true;return;}
+    if(!e.actual&&actual){e.actual=actual.code;changed=true;}
+  });
+  if(changed)saveLedger(ledger);
 }
-
+function invalidateScoresFrom(round){
+  var ledger=loadLedger();
+  Object.keys(ledger).forEach(function(key){var e=ledger[key];if(e.date===curDate&&e.round>=round)delete ledger[key];});
+  saveLedger(ledger);
+}
+function gradeRound(roundNum,actual){reconcileScores();}
 function renderAccuracy(){
-  var el=document.getElementById('acc-body');
-  if(!el)return;
-  var sc=loadScores();
-  var rows=[];
-  for(var m in METHODS){
-    var h=sc[m].h,ms=sc[m].m,t=h+ms;
-    rows.push({m:m,label:METHODS[m].label,col:METHODS[m].col,h:h,miss:ms,t:t,acc:t>0?h/t*100:null});
-  }
-  rows.sort(function(a,b){return (b.acc===null?-1:b.acc)-(a.acc===null?-1:a.acc);});
-  var totalGraded=rows.reduce(function(a,b){return a+b.t;},0);
-  if(totalGraded===0){
-    el.innerHTML='<div style="color:var(--muted);font-size:11px;">No graded rounds yet. Predictions are stored automatically — enter the next round result and it will be scored here.</div>';
-    return;
-  }
-  var html='<div style="font-size:10px;color:var(--muted);margin-bottom:6px;">Random guessing = 12.5%. Anything not clearly above that is not working.</div>';
-  html+=rows.map(function(r){
-    if(r.t===0)return '<div class="acc-row"><span style="color:'+r.col+'">'+r.label+'</span><span style="color:var(--muted);font-size:10px;">no data</span></div>';
-    var good=r.acc>15,bad=r.acc<12.5;
-    var col=good?'#00e676':bad?'#ef5350':'#ffb74d';
-    return '<div class="acc-row">'
-      +'<span style="color:'+r.col+';flex:1;">'+r.label+'</span>'
-      +'<span style="font-size:10px;color:var(--muted);width:62px;text-align:right;">'+r.h+'/'+r.t+'</span>'
-      +'<span style="width:52px;text-align:right;font-weight:700;color:'+col+';">'+r.acc.toFixed(1)+'%</span>'
-      +'</div>';
-  }).join('');
-  var best=rows.filter(function(r){return r.t>=20;})[0];
-  if(best){
-    if(best.acc>16) html+='<div style="margin-top:8px;font-size:11px;color:#00e676;">Best so far: '+best.label+' at '+best.acc.toFixed(1)+'% over '+best.t+' rounds.</div>';
-    else html+='<div style="margin-top:8px;font-size:11px;color:#ef5350;">Nothing is beating random yet. Best is '+best.label+' at '+best.acc.toFixed(1)+'% over '+best.t+' rounds — that is within noise of 12.5%.</div>';
-  } else {
-    html+='<div style="margin-top:8px;font-size:10px;color:var(--muted);">Need 20+ graded rounds per method before the numbers mean anything.</div>';
-  }
-  html+='<div style="margin-top:8px;font-size:10px;color:var(--muted);">Graded rounds: '+totalGraded+'</div>';
-  el.innerHTML=html;
+  var el=document.getElementById('acc-body');if(!el)return;
+  var ledger=loadLedger(),entries=Object.values(ledger).filter(function(e){return e&&e.predictions&&RoundCore.CODES.includes(e.actual);});
+  if(!entries.length){el.textContent='No prospective results yet. Today’s next-round forecasts are saved before the result is entered. Historical backfill is not scored.';return;}
+  var html='<div style="font-size:10px;color:var(--muted);margin-bottom:8px;">Compare each method with the frequency baseline on the SAME rounds. Intervals show uncertainty, not proof of an edge.</div>';
+  Object.keys(METHODS).forEach(function(m){
+    var eligible=entries.filter(function(e){return RoundCore.CODES.includes(e.predictions[m])&&RoundCore.CODES.includes(e.predictions.freq);});
+    var n=eligible.length,h=eligible.filter(function(e){return e.predictions[m]===e.actual;}).length;
+    var bh=eligible.filter(function(e){return e.predictions.freq===e.actual;}).length,ci=RoundCore.wilson(h,n);
+    html+='<div class="acc-row" style="flex-wrap:wrap;"><span style="color:'+METHODS[m].col+'">'+METHODS[m].label+'</span><span>'+(n?h+'/'+n+' · '+(h/n*100).toFixed(1)+'%':'no eligible forecasts')+'</span>'+
+      (n?'<div style="width:100%;font-size:10px;color:var(--muted);">95% interval '+(ci[0]*100).toFixed(1)+'–'+(ci[1]*100).toFixed(1)+'% · baseline '+(bh/n*100).toFixed(1)+'%</div>':'')+'</div>';
+  });
+  el.innerHTML=html+'<div style="font-size:10px;color:var(--muted);margin-top:8px;">'+entries.length+' unique graded rounds · up to 400 recent forecasts · stored on this browser/account. Edited history invalidates affected scores. Live accuracy does not establish profitability.</div>';
 }
 function resetScores(){
-  if(!confirm('Reset all prediction accuracy scores?'))return;
-  localStorage.removeItem('rt_scores');
-  localStorage.removeItem('rt_predlog');
-  renderAccuracy();
-  toast('Scores reset');
+  if(!confirm('Reset this account’s prospective accuracy history on this browser?'))return;
+  localStorage.removeItem(scoreKey());renderAccuracy();toast('Scores reset');
 }
+
 function toggleAcc(){
   var b=document.getElementById('acc-body');
   var shown=b.style.display!=='none';
@@ -1064,7 +985,7 @@ function ui(){
   last100.forEach(function(x){if(cnt[x]!==undefined)cnt[x]++;});
   ['T','K','O','L','C','S','G','W'].forEach(function(f){var el=document.getElementById('fc-'+f);if(el)el.textContent=cnt[f]||'';});
 
-  var f2=getFilledRounds(),c2=f2.map(function(r){return r.code;}),n2=c2.length;
+  var f2=RoundCore.contiguousTail(getFilledRounds()),c2=f2.map(function(r){return r.code;}),n2=c2.length;
   var sa=document.getElementById('seq-alert');
   if(n2>=3){
     sa.style.display='block';
@@ -1096,7 +1017,7 @@ function ui(){
     var sp=['G','W','S','C'].indexOf(r.code)>=0?'i'+r.code.toLowerCase():'';
     var cc=['G','W','S','C'].indexOf(r.code)>=0?r.code:'';
     var btns=isAdmin?('<button class="hedit" onclick="openEdit(\''+r.id+'\')" style="margin-left:auto;">EDIT</button><button class="hclr" onclick="clrRound(\''+r.id+'\')">CLR</button>'):'<span style="margin-left:auto;"></span>';
-    return'<div class="hi '+sp+'"><span class="hr">#'+r.round_number+'</span><span class="ht">'+(r.play_time?r.play_time.substring(0,5):'')+'</span><span class="hc '+cc+'">'+r.code+'</span>'+btns+'</div>';
+    return'<div class="hi '+sp+'"><span class="hr">#'+r.round_number+'</span><span class="ht">'+escapeHtml(r.play_time?String(r.play_time).substring(0,5):'')+'</span><span class="hc '+cc+'">'+r.code+'</span>'+btns+'</div>';
   }).join('');
 }
 
@@ -1120,70 +1041,63 @@ function searchPattern(){
   el.innerHTML='<div class="hsr-summary">'+tot+' matches: '+summary+'</div>';
 }
 
-// ── RNG ──
-var FMAP={T:0,K:1,O:2,L:3,C:4,S:5,G:6,W:7},NMAP={0:'T',1:'K',2:'O',3:'L',4:'C',5:'S',6:'G',7:'W'};
-var WEIGHTS=[20,20,20,20,10,6.7,4,2.5],TW=103.7;
-var rngLogs=[];
-function rngLog(m){rngLogs.unshift(m);if(rngLogs.length>15)rngLogs.pop();var el=document.getElementById('rng-log');if(el){el.innerHTML=rngLogs.join('<br>');document.getElementById('rng-log-box').style.display='block';}}
-function rngProg(p){document.getElementById('rng-prog-wrap').style.display='block';document.getElementById('rng-prog-bar').style.width=p+'%';}
-function wIdx(v,m){var cum=0,n=(v/m)*TW;for(var i=0;i<WEIGHTS.length;i++){cum+=WEIGHTS[i];if(n<=cum)return i;}return 7;}
-function lcgRun(s,a,c,m,n){var res=[],x=s;for(var i=0;i<n;i++){x=(a*x+c)%m;res.push(wIdx(x,m));}return res;}
-function xorRun(s,n){var res=[],x=s>>>0;for(var i=0;i<n;i++){x^=x<<13;x^=x>>17;x^=x<<5;x=x>>>0;res.push(wIdx(x,4294967295));}return res;}
-function rngAcc(pred,act){var ok=0,n=Math.min(pred.length,act.length);for(var i=0;i<n;i++)if(pred[i]===act[i])ok++;return n>0?ok/n*100:0;}
-function findSeed(seq,algo,p,range){var best={s:1,acc:0},ts=seq.slice(-50);for(var s=1;s<=range;s++){var pred=algo==='lcg'?lcgRun(s,p.a,p.c,p.m,ts.length):xorRun(s,ts.length);var acc=rngAcc(pred,ts);if(acc>best.acc){best.acc=acc;best.s=s;}}return best;}
-function buildMarkov(seq,order){var chain={};for(var i=order;i<seq.length;i++){var key=seq.slice(i-order,i).join(','),nx=seq[i];if(!chain[key])chain[key]={};chain[key][nx]=(chain[key][nx]||0)+1;}return chain;}
-function markovPredict(chain,last,order){var key=last.slice(-order).join(',');if(!chain[key])return null;var c=chain[key],tot=Object.values(c).reduce(function(a,b){return a+b;},0);var best=null,bc=0;Object.keys(c).forEach(function(f){if(c[f]>bc){bc=c[f];best=f;}});return{fruit:best,conf:(bc/tot*100).toFixed(1),total:tot};}
-function lfsrRun(seed,taps,bits,count){var res=[],x=seed&((1<<bits)-1);for(var i=0;i<count;i++){var bit=0;for(var t=0;t<taps.length;t++)bit^=(x>>(taps[t]-1))&1;x=((x>>1)|(bit<<(bits-1)))&((1<<bits)-1);res.push(wIdx(x,(1<<bits)-1));}return res;}
-var LFSRS=[{name:'LFSR-8',bits:8,taps:[8,6,5,4]},{name:'LFSR-16',bits:16,taps:[16,15,13,4]},{name:'LFSR-12',bits:12,taps:[12,11,10,4]}];
-function findLFSRSeed(seq,lf,range){var best={s:1,acc:0},ts=seq.slice(-50);for(var s=1;s<=range;s++){var pred=lfsrRun(s,lf.taps,lf.bits,ts.length);var acc=rngAcc(pred,ts);if(acc>best.acc){best.acc=acc;best.s=s;}}return best;}
-var LCGS=[{name:'Numerical Recipes',a:1664525,c:1013904223,m:4294967296},{name:'glibc',a:1103515245,c:12345,m:2147483648},{name:'Borland C++',a:22695477,c:1,m:4294967296},{name:'MINSTD',a:16807,c:0,m:2147483647},{name:'ZX81',a:75,c:74,m:65537}];
-function sleep(ms){return new Promise(function(r){setTimeout(r,ms);});}
-function calcEntropy(seq){var counts={};seq.forEach(function(x){counts[x]=(counts[x]||0)+1;});var n=seq.length,entropy=0;for(var k in counts){var p=counts[k]/n;entropy-=p*Math.log2(p);}return entropy/Math.log2(8);}
-function ensembleVote(markovRes,allResults,filled){var votes={T:0,K:0,O:0,L:0,C:0,S:0,G:0,W:0};markovRes.forEach(function(m){if(m.matches>0&&m.next!=='—'){var weight=parseFloat(m.acc)/100*Math.min(m.matches,10);votes[m.next]=(votes[m.next]||0)+weight*2;}});var last20=filled.slice(-20).map(function(r){return r.code;});var freq={};last20.forEach(function(x){freq[x]=(freq[x]||0)+1;});for(var k in freq)votes[k]=(votes[k]||0)+freq[k]*0.3;var best=null,bestV=0;for(var k in votes)if(votes[k]>bestV){bestV=votes[k];best=k;}return{fruit:best,score:bestV,votes:votes};}
-
-async function runRNG(){
-  var btn=document.getElementById('rng-run-btn');btn.disabled=true;btn.textContent='Running...';
-  rngLogs=[];rngProg(5);
-  document.getElementById('rng-best').style.display='none';document.getElementById('rng-markov').style.display='none';document.getElementById('rng-algos').style.display='none';
-  var filled=getFilledRounds();
-  rngLog('📅 Date: '+curDate+' | Rounds: '+filled.length);
-  if(filled.length<10){rngLog('❌ Need 10+ rounds');btn.disabled=false;btn.textContent='▶ RUN ANALYSIS';return;}
-  var seq=filled.map(function(r){return FMAP[r.code];}),n=seq.length,allResults=[];
-  for(var i=0;i<LCGS.length;i++){var p=LCGS[i];rngProg(10+i*12);rngLog('🧪 LCG: '+p.name);await sleep(20);var f=findSeed(seq,'lcg',p,100000);var pred=lcgRun(f.s,p.a,p.c,p.m,n+5);allResults.push({name:'LCG ('+p.name+')',acc:f.acc.toFixed(1),next:pred.slice(n,n+5).map(function(x){return NMAP[x];})});}
-  rngProg(75);rngLog('🧪 XorShift32');await sleep(20);var xf=findSeed(seq,'xor',null,100000);var xp=xorRun(xf.s,n+5);allResults.push({name:'XorShift32',acc:xf.acc.toFixed(1),next:xp.slice(n,n+5).map(function(x){return NMAP[x];})});
-  rngProg(80);
-  for(var li=0;li<LFSRS.length;li++){var lf=LFSRS[li];rngLog('🧪 '+lf.name);await sleep(20);var lff=findLFSRSeed(seq,lf,3000);var lfpred=lfsrRun(lff.s,lf.taps,lf.bits,n+5);allResults.push({name:lf.name,acc:lff.acc.toFixed(1),next:lfpred.slice(n,n+5).map(function(x){return NMAP[x];})});rngLog('  → '+lff.acc.toFixed(1)+'%');}
-  rngProg(88);rngLog('🧪 Markov Chain');await sleep(20);
-  var markovRes=[];
-  for(var ord=2;ord<=4;ord++){var chain=buildMarkov(seq,ord);var mp=markovPredict(chain,seq.slice(-ord),ord);var testStart=Math.floor(n*0.8),ok=0,tot=0;for(var j=testStart+ord;j<n;j++){var pp=markovPredict(chain,seq.slice(j-ord,j),ord);if(pp&&parseInt(pp.fruit)===seq[j])ok++;tot++;}var macc=tot>0?(ok/tot*100).toFixed(1):0;var nf=mp&&mp.total>0?NMAP[parseInt(mp.fruit)]:'—';markovRes.push({order:ord,acc:macc,next:nf,conf:mp?mp.conf:0,matches:mp?mp.total:0});rngLog('  Order '+ord+': '+macc+'% → '+nf);}
-  allResults.sort(function(a,b){return parseFloat(b.acc)-parseFloat(a.acc);});
-  var bm=markovRes.filter(function(r){return r.matches>0;}).sort(function(a,b){return parseFloat(b.acc)-parseFloat(a.acc);})[0];
-  var br=allResults[0];
-  var best=bm&&parseFloat(bm.acc)>parseFloat(br.acc)?{letter:bm.next,method:'Markov Order '+bm.order,acc:bm.acc}:{letter:br.next[0],method:br.name,acc:br.acc};
-  document.getElementById('rng-best').style.display='block';document.getElementById('rng-best-letter').textContent=best.letter;document.getElementById('rng-best-letter').style.color=FCOL[best.letter]||'#00e5ff';document.getElementById('rng-best-method').textContent=best.method;document.getElementById('rng-best-acc').textContent=best.acc+'%';document.getElementById('rng-best-acc').style.color=parseFloat(best.acc)>25?'var(--green)':'var(--red)';
-  document.getElementById('rng-markov').style.display='block';document.getElementById('rng-markov-content').innerHTML=markovRes.map(function(r){return'<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);"><div><span style="font-size:11px;color:#00e5ff;">Order '+r.order+'</span><span style="font-size:10px;color:var(--muted);margin-left:8px;">'+r.matches+' matches</span></div><div style="display:flex;align-items:center;gap:8px;"><span style="font-size:18px;font-weight:700;color:'+(FCOL[r.next]||'#e0e0e0')+'">'+r.next+'</span><span style="font-size:11px;color:'+(r.conf>=50?'#00e676':'#ffb74d')+'">'+r.conf+'%</span><span style="font-size:10px;color:'+(parseFloat(r.acc)>25?'#00e676':'#ef5350')+'">'+r.acc+'%</span></div></div>';}).join('');
-  document.getElementById('rng-algos').style.display='block';document.getElementById('rng-algos-content').innerHTML=allResults.map(function(r,i){return'<div style="padding:5px 0;border-bottom:1px solid var(--border);"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;"><span style="font-size:11px;color:'+(i===0?'#00e5ff':'#e0e0e0')+'">'+r.name+'</span><span style="font-size:13px;font-weight:700;color:'+(parseFloat(r.acc)>20?'#00e676':'#ef5350')+'">'+r.acc+'%</span></div><div style="display:flex;gap:4px;">'+r.next.map(function(f){return'<span style="font-size:13px;font-weight:700;color:'+(FCOL[f]||'#e0e0e0')+';background:#0d0f14;padding:2px 6px;border-radius:4px;">'+f+'</span>';}).join('')+'</div></div>';}).join('');
-  var freqMap={T:0,K:0,O:0,L:0,C:0,S:0,G:0,W:0};filled.forEach(function(r){if(freqMap[r.code]!==undefined)freqMap[r.code]++;});var freqTotal=filled.length;var freqSorted=Object.keys(freqMap).sort(function(a,b){return freqMap[b]-freqMap[a];});rngLog('📈 Frequency today: '+freqSorted.map(function(f){return f+':'+(freqMap[f]/freqTotal*100).toFixed(0)+'%';}).join(' '));
-  var last20=filled.slice(-20).map(function(r){return r.code;});var hotMap={};last20.forEach(function(f){hotMap[f]=(hotMap[f]||0)+1;});var hotSorted=Object.keys(hotMap).sort(function(a,b){return hotMap[b]-hotMap[a];});rngLog('🔥 Last 20: '+hotSorted.slice(0,3).map(function(f){return f+':'+hotMap[f];}).join(' '));
-  var entropy=calcEntropy(seq);rngLog('🎲 Entropy: '+(entropy*100).toFixed(1)+'% '+(entropy>0.95?'(TRULY RANDOM)':entropy>0.85?'(mostly random)':'(PATTERN DETECTED!)'));
-  var ensemble=ensembleVote(markovRes,allResults,filled);rngLog('🗳️ ENSEMBLE: '+ensemble.fruit);
-  var q25=filled.slice(-25);if(q25.length>=10){var q25seq=q25.map(function(r){return FMAP[r.code];});var q25chain2=buildMarkov(q25seq,2),q25chain3=buildMarkov(q25seq,3);var q25p2=markovPredict(q25chain2,q25seq.slice(-2),2);var q25p3=markovPredict(q25chain3,q25seq.slice(-3),3);var q25next2=q25p2&&q25p2.total>0?NMAP[parseInt(q25p2.fruit)]:'—';var q25next3=q25p3&&q25p3.total>0?NMAP[parseInt(q25p3.fruit)]:'—';rngLog('⚡ LAST 25 — 2-seq:'+q25next2+(q25p2?' ('+q25p2.conf+'%)':'')+' | 3-seq:'+q25next3+(q25p3?' ('+q25p3.conf+'%)':''));}
-  rngProg(100);btn.disabled=false;btn.textContent='▶ RUN AGAIN';rngLog('✅ Done!');
+// ── RNG experiments ──
+function rngLog(message){
+  var el=document.getElementById('rng-log');el.textContent+=(el.textContent?'\n':'')+message;
+  el.style.whiteSpace='pre-wrap';document.getElementById('rng-log-box').style.display='block';
 }
-
-function rngLog2(m){var el=document.getElementById('rng-log2');if(el){el.innerHTML=(el.innerHTML?el.innerHTML+'<br>':'')+m;document.getElementById('rng-log-box2').style.display='block';}}
-function rngProg2(p){document.getElementById('rng-prog-wrap2').style.display='block';document.getElementById('rng-prog-bar2').style.width=p+'%';}
-async function runRNG2(){
-  var btn=document.getElementById('rng-run-btn2');btn.disabled=true;btn.textContent='Running...';
-  document.getElementById('rng-log2').innerHTML='';document.getElementById('rng-log-box2').style.display='none';document.getElementById('rng-best2').style.display='none';document.getElementById('rng-markov2').style.display='none';rngProg2(10);
-  var filled=getFilledRounds().slice(-25);rngLog2('⚡ Using last '+filled.length+' rounds');if(filled.length<10){rngLog2('❌ Need 10+');btn.disabled=false;btn.textContent='▶ RUN LAST 25';return;}
-  var seq=filled.map(function(r){return FMAP[r.code];}),n=seq.length,markovRes=[];rngProg2(30);
-  for(var ord=2;ord<=4;ord++){var chain=buildMarkov(seq,ord);var mp=markovPredict(chain,seq.slice(-ord),ord);var nf=mp&&mp.total>0?NMAP[parseInt(mp.fruit)]:'—';markovRes.push({order:ord,acc:0,next:nf,conf:mp?mp.conf:0,matches:mp?mp.total:0});rngLog2('Order '+ord+': '+nf+(mp?' ('+mp.conf+'% / '+mp.total+' matches)':''));await sleep(10);}
-  rngProg2(80);
-  var bm=markovRes.filter(function(r){return r.matches>0;}).sort(function(a,b){return parseFloat(b.conf)-parseFloat(a.conf);})[0];
-  if(bm){document.getElementById('rng-best2').style.display='block';document.getElementById('rng-best-letter2').textContent=bm.next;document.getElementById('rng-best-letter2').style.color=FCOL[bm.next]||'#ffb74d';document.getElementById('rng-best-method2').textContent='Markov Order '+bm.order;document.getElementById('rng-best-acc2').textContent=bm.conf+'%';document.getElementById('rng-best-acc2').style.color=parseFloat(bm.conf)>50?'var(--green)':'var(--orange)';}
-  document.getElementById('rng-markov2').style.display='block';document.getElementById('rng-markov-content2').innerHTML=markovRes.map(function(r){return'<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);"><div><span style="font-size:11px;color:#ffb74d;">Order '+r.order+'</span><span style="font-size:10px;color:var(--muted);margin-left:8px;">'+r.matches+' matches</span></div><div style="display:flex;align-items:center;gap:8px;"><span style="font-size:18px;font-weight:700;color:'+(FCOL[r.next]||'#e0e0e0')+'">'+r.next+'</span><span style="font-size:11px;color:'+(r.conf>=50?'#00e676':'#ffb74d')+'">'+r.conf+'%</span></div></div>';}).join('');
-  rngProg2(100);btn.disabled=false;btn.textContent='▶ RUN LAST 25';
+function rngProg(p){document.getElementById('rng-prog-wrap').style.display='block';document.getElementById('rng-prog-bar').style.width=p+'%';}
+function renderEvaluation(id,a){
+  document.getElementById(id).textContent=a.n+' walk-forward rounds · policy '+(a.n?a.policyHits/a.n*100:0).toFixed(1)+'% · frequency baseline '+(a.n?a.baseHits/a.n*100:0).toFixed(1)+'%'+
+    (a.n?' · log loss '+a.policyLoss.toFixed(3)+' vs '+a.baseLoss.toFixed(3):'')+'. '+(a.edge?'Historical pattern advantage; confirm prospectively.':'No validated pattern edge.');
+}
+function runRNG(){
+  if(rngWorker){stopAnalysis();return;}
+  var f=RoundCore.contiguousTail(getFilledRounds());
+  if(loadedDate!==curDate||f.length<40){toast('Load at least 40 consecutive rounds');return;}
+  var version=loadVersion,context=contextSignature(f),btn=document.getElementById('rng-run-btn');
+  document.getElementById('rng-log').textContent='';
+  document.getElementById('rng-algos').style.display='none';
+  document.getElementById('rng-best').style.display='none';
+  document.getElementById('rng-markov').style.display='block';renderEvaluation('rng-markov-content',getAnalysis());
+  rngLog('Testing assumed generators and weights on the last '+Math.min(80,f.length)+' consecutive rounds. Last 20 outcomes withheld from seed search.');
+  rngLog('Searching many seeds can fit chance patterns. A match is not proof of the game algorithm or a recovered seed.');
+  rngProg(0);btn.textContent='■ CANCEL ANALYSIS';
+  try{
+    var worker=new Worker('rng-worker.js');rngWorker=worker;
+    var timer=setTimeout(function(){if(rngWorker===worker){stopAnalysis();toast('Analysis timed out. Try again.');}},120000);
+    function finish(){clearTimeout(timer);worker.terminate();if(rngWorker===worker){rngWorker=null;btn.disabled=false;btn.textContent='▶ RUN ANALYSIS';}}
+    worker.onerror=function(){finish();rngLog('Analysis worker failed. Reload the page and try again.');};
+    worker.onmessage=function(event){
+      if(rngWorker!==worker||version!==loadVersion||context!==contextSignature(RoundCore.contiguousTail(getFilledRounds()))){finish();return;}
+      var d=event.data;
+      if(d.error){finish();rngLog(d.error);return;}
+      if(d.progress!==undefined){rngProg(d.progress);rngLog('Testing '+d.name);return;}
+      if(!d.results)return;
+      document.getElementById('rng-algos').style.display='block';
+      document.getElementById('rng-algos-content').innerHTML=d.results.map(function(r){
+        return '<div style="padding:8px 0;border-bottom:1px solid var(--border);">'+escapeHtml(r.name)+
+          '<div style="font-size:11px;">Training '+r.hits+'/'+r.trainN+' · holdout '+r.testHits+'/'+r.testN+' · frequency baseline '+r.baselineHits+'/'+r.testN+'</div>'+
+          '<div style="font-size:10px;color:var(--muted);">'+r.searched+' candidate states searched · '+(r.exact?'Exact window match under assumptions; needs new unseen rounds.':'No exact window match.')+'</div>'+
+          (r.exact?'<div>Candidate continuation (unverified): '+r.next.join(' → ')+'</div>':'')+'</div>';
+      }).join('');
+      var exact=d.results.filter(function(r){return r.exact;});
+      document.getElementById('rng-best').style.display='block';
+      document.getElementById('rng-best-letter').textContent='—';
+      document.getElementById('rng-best-method').textContent=exact.length?'Candidate match — unverified':'No RNG recovered';
+      document.getElementById('rng-best-acc').textContent='Holdout ≠ live accuracy';
+      rngProg(100);rngLog('Complete. Holdout results across '+d.results.length+' families are exploratory; do not select a “winner” as proven.');finish();
+    };
+    worker.postMessage({seq:f.map(function(r){return RoundCore.CODES.indexOf(r.code);})});
+  }catch(e){stopAnalysis();rngLog('Worker unavailable. Serve this app over HTTP(S) and reload.');}
+}
+function runRNG2(){
+  if(loadedDate!==curDate){toast('Load a date first');return;}
+  var f=RoundCore.contiguousTail(getFilledRounds()).slice(-25),a=RoundCore.evaluate(f.map(function(r){return r.code;}));
+  document.getElementById('rng-markov2').style.display='block';renderEvaluation('rng-markov-content2',a);
+  document.getElementById('rng-best2').style.display='block';document.getElementById('rng-best-letter2').textContent='—';
+  document.getElementById('rng-best-method2').textContent='Last 25: insufficient validation';
+  document.getElementById('rng-best-acc2').textContent='No validated edge';
 }
 
 // ── RESTORE SESSION ──
@@ -1196,21 +1110,8 @@ async function restoreSession(){
     var o=JSON.parse(s);
     tok=o.tok;uid=o.uid;if(o.refresh)refreshTok=o.refresh;
 
-    async function fetchMe(){
-      return fetch(SB_URL+'/auth/v1/user',{
-        headers:{'apikey':SB_KEY,'Authorization':'Bearer '+tok}
-      });
-    }
-
-    var r=await fetchMe();
-    if(r.status===401){
-      var ok=await refreshToken();
-      if(!ok){localStorage.removeItem('rt_session');return;}
-      r=await fetchMe();
-    }
-    if(!r.ok){localStorage.removeItem('rt_session');return;}
-
-    var me=await r.json();
+    var result=await transport.request('/auth/v1/user');
+    var me=result.data;
     if(!me||!me.id||!me.email){localStorage.removeItem('rt_session');return;}
     uid=me.id;
     userEmail=(me.email||'').trim().toLowerCase();
