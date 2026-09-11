@@ -442,6 +442,8 @@ function safeRead(key,fallback){try{var value=JSON.parse(localStorage.getItem(ke
 function safeWrite(key,value){try{localStorage.setItem(key,JSON.stringify(value));return true;}catch(e){toast('Browser storage unavailable — accuracy history could not be saved');return false;}}
 function scoreKey(){return 'rt_accuracy_v2:'+uid;}
 function validRound(value){var n=Number(value);return Number.isInteger(n)&&n>=1&&n<=2600?n:null;}
+// Inline history buttons pass text; Supabase may return numeric primary keys.
+function sameRoundId(a,b){return a!==null&&a!==undefined&&b!==null&&b!==undefined&&String(a)===String(b);}
 function requireReady(){if(!isAdmin)return denyWrite();if(writeBusy){toast('Save already in progress');return false;}if(loadedDate!==curDate){toast('Load this date before editing');return false;}return true;}
 function escapeHtml(value){return String(value==null?'':value).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
 
@@ -585,7 +587,7 @@ async function enter(code){
     var row=await mutateRound('/rest/v1/rounds'+(existing?'?id=eq.'+encodeURIComponent(existing.id):''),existing?'PATCH':'POST',body);
     if(date!==curDate||version!==loadVersion||session!==authVersion)return;
     RoundCore.validateRows([row],date);
-    rounds=RoundCore.validateRows(rounds.filter(function(r){return r.id!==row.id;}).concat([row]),date);
+    rounds=RoundCore.validateRows(rounds.filter(function(r){return !sameRoundId(r.id,row.id);}).concat([row]),date);
     if(!existing||!existing.code)gradeRound(rnum,code);else invalidateScoresFrom(rnum);
     historyChanged();advance(rnum);ui();
   }catch(e){if(date===curDate&&version===loadVersion&&session===authVersion){toast(e.message+' — refresh before retrying');loadedDate=null;rounds=[];historyChanged();ui();}}
@@ -597,19 +599,22 @@ function advance(rnum){var v=enterDir===1?Math.min(2600,rnum+1):Math.max(1,rnum-
 // ── CLR / EDIT ──
 async function clrRound(id){
   if(!requireReady())return;
-  var row=rounds.find(function(r){return r.id===id;});if(!row||!confirm('Delete this round?'))return;
+  var row=rounds.find(function(r){return sameRoundId(r.id,id);});
+  if(!row){toast('Round not found. Refresh the history and try again.');return;}
+  if(!confirm('Delete this round?'))return;
   var date=curDate,version=loadVersion,session=authVersion;writeBusy=true;
   try{
     await mutateRound('/rest/v1/rounds?id=eq.'+encodeURIComponent(id),'DELETE');
     if(date!==curDate||version!==loadVersion||session!==authVersion)return;
-    rounds=rounds.filter(function(r){return r.id!==id;});invalidateScoresFrom(row.round_number);historyChanged();ui();toast('Deleted');
+    rounds=rounds.filter(function(r){return !sameRoundId(r.id,id);});invalidateScoresFrom(row.round_number);historyChanged();ui();toast('Deleted');
   }catch(e){if(date===curDate&&version===loadVersion&&session===authVersion){toast(e.message+' — refresh before retrying');loadedDate=null;rounds=[];historyChanged();ui();}}finally{writeBusy=false;}
 }
 
 function openEdit(id){
-  if(!isAdmin)return denyWrite();
-  var r=rounds.find(function(x){return x.id===id;});if(!r)return;
-  editingId=id;editingCode=r.code;
+  if(!requireReady())return;
+  var r=rounds.find(function(x){return sameRoundId(x.id,id);});
+  if(!r){toast('Round not found. Refresh the history and try again.');return;}
+  editingId=r.id;editingCode=r.code;
   document.getElementById('medit-rnum').value=r.round_number;
   document.querySelectorAll('.mfb').forEach(function(b){b.classList.toggle('sel',b.textContent===r.code);});
   document.getElementById('modal').style.display='flex';
@@ -619,14 +624,14 @@ function closeModal(){document.getElementById('modal').style.display='none';}
 async function saveEdit(){
   if(!requireReady())return;
   var id=editingId,code=editingCode,rnum=validRound(document.getElementById('medit-rnum').value);
-  var old=rounds.find(function(r){return r.id===id;});
+  var old=rounds.find(function(r){return sameRoundId(r.id,id);});
   if(!old||!rnum||!RoundCore.CODES.includes(code)){toast('Invalid round or result');return;}
-  if(rounds.some(function(r){return r.id!==id&&r.round_number===rnum;})){toast('That round number already exists');return;}
+  if(rounds.some(function(r){return !sameRoundId(r.id,id)&&r.round_number===rnum;})){toast('That round number already exists');return;}
   var date=curDate,version=loadVersion,session=authVersion;writeBusy=true;
   try{
     var row=await mutateRound('/rest/v1/rounds?id=eq.'+encodeURIComponent(id),'PATCH',{round_number:rnum,code:code});
     if(date!==curDate||version!==loadVersion||session!==authVersion)return;
-    rounds=RoundCore.validateRows(rounds.filter(function(r){return r.id!==id;}).concat([row]),date);
+    rounds=RoundCore.validateRows(rounds.filter(function(r){return !sameRoundId(r.id,id);}).concat([row]),date);
     invalidateScoresFrom(Math.min(old.round_number,rnum));closeModal();historyChanged();ui();toast('Saved');
   }catch(e){if(date===curDate&&version===loadVersion&&session===authVersion){toast(e.message+' — refresh before retrying');loadedDate=null;rounds=[];historyChanged();ui();}}finally{writeBusy=false;}
 }

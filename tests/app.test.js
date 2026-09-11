@@ -86,3 +86,26 @@ test('logout invalidates in-flight loads and clears refresh credentials',async()
   ctx.transport={list:()=>pending.promise};const loading=ctx.loadRounds();ctx.doLogout();pending.resolve(data);await loading;
   assert.equal(ctx.loadedDate,null);assert.equal(ctx.refreshTok,null);assert.equal(ctx.rounds.length,0);
 });
+test('EDIT opens and saves numeric database IDs passed as text by history buttons',async()=>{
+  const {ctx,element}=app();ctx.rounds=rows(ctx,3);ctx.rounds[1].id=42;
+  ctx.openEdit('42');
+  assert.equal(element('modal').style.display,'flex');
+  ctx.selCode('W');
+  let calls=0;
+  ctx.transport={request:async(path,init)=>{
+    calls++;assert.match(path,/id=eq\.42$/);assert.equal(init.method,'PATCH');
+    return {data:[{...ctx.rounds[1],code:'W'}]};
+  }};
+  await ctx.saveEdit();
+  assert.equal(calls,1);assert.equal(ctx.rounds.length,3);assert.equal(ctx.rounds[1].code,'W');
+});
+test('CLR deletes numeric database IDs passed as text by history buttons',async()=>{
+  const {ctx}=app();ctx.rounds=rows(ctx,3);ctx.rounds[1].id=42;
+  let calls=0;
+  ctx.transport={request:async(path,init)=>{
+    calls++;assert.match(path,/id=eq\.42$/);assert.equal(init.method,'DELETE');
+    return {data:[ctx.rounds[1]]};
+  }};
+  await ctx.clrRound('42');
+  assert.equal(calls,1);assert.equal(ctx.rounds.length,2);assert.ok(ctx.rounds.every(r=>r.id!==42));
+});
