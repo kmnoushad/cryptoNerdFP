@@ -21,7 +21,9 @@ body{background:var(--bg);color:var(--text);font-family:Arial,sans-serif;font-si
 #app{display:none;flex-direction:column;max-width:480px;margin:0 auto;padding:8px;padding-bottom:20px;}
 .hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid var(--border);}
 .hdr h1{font-size:14px;font-weight:900;color:var(--accent);letter-spacing:2px;}
-.hdr-btns{display:flex;gap:5px;}
+.hdr-btns{display:flex;align-items:flex-start;gap:5px;}
+.logout-group{display:flex;flex-direction:column;align-items:center;gap:4px;}
+.tester-name{font-size:10px;font-weight:600;letter-spacing:1px;color:var(--accent);}
 .hbtn{background:transparent;border:1px solid var(--border);color:var(--muted);border-radius:5px;font-size:11px;padding:4px 8px;cursor:pointer;}
 .date-row{display:flex;align-items:center;gap:6px;margin-bottom:8px;}
 .date-lbl{font-size:10px;color:var(--muted);letter-spacing:1px;white-space:nowrap;}
@@ -173,7 +175,10 @@ body{background:var(--bg);color:var(--text);font-family:Arial,sans-serif;font-si
     <div class="hdr-btns">
       <span class="hbtn" id="role-badge" style="font-weight:700;letter-spacing:1px;">—</span>
       <button class="hbtn" id="refresh-btn" onclick="loadRounds()">↺ REFRESH</button>
-      <button class="hbtn" onclick="doLogout()">LOGOUT</button>
+      <div class="logout-group">
+        <button class="hbtn" onclick="doLogout()">LOGOUT</button>
+        <span class="tester-name">ISHWA</span>
+      </div>
     </div>
   </div>
 
